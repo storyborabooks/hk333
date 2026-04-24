@@ -96,20 +96,518 @@ canvas#mm { position:absolute; bottom:8px; left:8px; width:160px; height:140px; 
 
 <script>
 // ================================================================
-// KITTY CONQUEST v3 — Full 6-Faction Strategy Game
+// KITTY CONQUEST v4 — Full 6-Faction Strategy Game w/ SVG Sprites
 // ================================================================
 const HEX=28, MAP_R=10, S3=Math.sqrt(3);
 
-const T={
-    PLAINS:  {id:'plains',  c:'#4a7c59',name:'Plains',  mc:1,def:0},
-    FOREST:  {id:'forest',  c:'#2d5a1e',name:'Forest',  mc:2,def:1},
-    MOUNTAIN:{id:'mountain',c:'#6b6b7b',name:'Mountain',mc:3,def:2},
-    WATER:   {id:'water',   c:'#1a4a6b',name:'Water',   mc:-1,def:0},
-    CITY:    {id:'city',    c:'#555577',name:'City',     mc:1,def:1},
+// ================================================================
+// FACTION PALETTES (from design package)
+// ================================================================
+const FACTION_PALETTES={
+  kitty:{paper:'#f2eadb',ink:'#1a1330',fur:'#ffc8de',furShade:'#e598b7',accent:'#ff4d9a',metal:'#c9bfa8',cloth:'#d23240'},
+  ferret:{paper:'#ece1c0',ink:'#2b1f14',fur:'#c89a4a',furShade:'#8a6a2a',accent:'#e8c95b',metal:'#b0a78e',cloth:'#6b3a1a'},
+  meerkat:{paper:'#e6dbc0',ink:'#1e1a14',fur:'#b48a5a',furShade:'#6f5434',accent:'#e25a2a',metal:'#8c8678',cloth:'#2d2a22'},
+  possum:{paper:'#1e1a24',ink:'#f2eadb',fur:'#b3a6bb',furShade:'#6f6676',accent:'#c36ba5',metal:'#9b93a0',cloth:'#3a3340'},
+  crow:{paper:'#1a1a20',ink:'#f2eadb',fur:'#2b2b34',furShade:'#0e0e14',accent:'#d94a2a',metal:'#c8bfa8',cloth:'#4a1d35'},
+  hyena:{paper:'#e6d8b0',ink:'#1e1408',fur:'#c48a4a',furShade:'#6e4418',accent:'#8a2a1a',metal:'#c9a978',cloth:'#3a2014'},
 };
 
 // ================================================================
-// FACTIONS — 6 total, each with unique units
+// HERO PALETTES (from design package)
+// ================================================================
+const HERO_PALETTES={
+  hitty:{fur:'#ffc8de',furShade:'#f39cbe',accent:'#ff4d9a',cloth:'#d23240',cloth2:'#fff4e6',metal:'#e2dccf',metalShade:'#9b9281',nose:'#ff4d9a',ink:'#1a1330'},
+  gritty:{fur:'#6f6a82',furShade:'#3e3a4c',accent:'#e8c95b',cloth:'#2b2048',cloth2:'#8a6f33',metal:'#b6aea0',metalShade:'#5e5849',nose:'#f2eadb',ink:'#1a1330'},
+  witty:{fur:'#d9cfe6',furShade:'#aba2c2',accent:'#3a6ea5',cloth:'#2f4a7a',cloth2:'#f2eadb',metal:'#e2dccf',metalShade:'#8a8173',nose:'#2b2048',ink:'#1a1330'},
+  pritty:{fur:'#fff0f6',furShade:'#f7c8d9',accent:'#ff4d9a',cloth:'#ffd23f',cloth2:'#ffb3d1',metal:'#fff4e6',metalShade:'#c9b898',nose:'#ff4d9a',ink:'#1a1330'},
+  skitty:{fur:'#e9f0d8',furShade:'#b8c59b',accent:'#4a7a5c',cloth:'#4a7a5c',cloth2:'#fff4e6',metal:'#cdc193',metalShade:'#756a48',nose:'#4a1d35',ink:'#1a1330'},
+  shitty:{fur:'#bfb28d',furShade:'#8a7f5a',accent:'#748a3a',cloth:'#584a2c',cloth2:'#a58c5c',metal:'#9b9281',metalShade:'#4c4638',nose:'#4a1d35',ink:'#1a1330'},
+};
+
+// ================================================================
+// SVG SPRITE SYSTEM — generates Image objects from SVG strings
+// ================================================================
+const SPRITES={};
+let spritesReady=false;
+
+function svgHead(faction,p){
+  const f=p.fur,fs=p.furShade,ink=p.ink,acc=p.accent;
+  switch(faction){
+    case 'kitty': return `<g>
+      <polygon points="-16,-14 -10,-22 -6,-12" fill="${f}" stroke="${ink}" stroke-width="1.4"/>
+      <polygon points="16,-14 10,-22 6,-12" fill="${f}" stroke="${ink}" stroke-width="1.4"/>
+      <circle cx="0" cy="-4" r="16" fill="${f}" stroke="${ink}" stroke-width="1.6"/>
+      <path d="M -14 4 q 6 6 14 6" fill="${fs}" opacity="0.55"/>
+      <ellipse cx="-5" cy="-4" rx="2.4" ry="2.8" fill="#fff4e6" stroke="${ink}" stroke-width="1.1"/>
+      <ellipse cx="5" cy="-4" rx="2.4" ry="2.8" fill="#fff4e6" stroke="${ink}" stroke-width="1.1"/>
+      <circle cx="-5" cy="-3.5" r="1.2" fill="${ink}"/>
+      <circle cx="5" cy="-3.5" r="1.2" fill="${ink}"/>
+      <polygon points="-1.2,2 1.2,2 0,3.6" fill="${acc}"/>
+      <g stroke="${ink}" stroke-width="0.8" stroke-linecap="round" opacity="0.7">
+        <line x1="-7" y1="6" x2="-14" y2="5"/>
+        <line x1="7" y1="6" x2="14" y2="5"/>
+      </g></g>`;
+    case 'ferret': return `<g>
+      <ellipse cx="-10" cy="-16" rx="4" ry="5" fill="${f}" stroke="${ink}" stroke-width="1.3"/>
+      <ellipse cx="10" cy="-16" rx="4" ry="5" fill="${f}" stroke="${ink}" stroke-width="1.3"/>
+      <path d="M -14 -8 q 0 -14 14 -14 q 14 0 16 10 q 2 12 -8 14 q -12 2 -22 -2 Z" fill="${f}" stroke="${ink}" stroke-width="1.5"/>
+      <path d="M -12 -8 q 14 -6 26 0 l 0 4 q -13 6 -26 0 Z" fill="${ink}" opacity="0.85"/>
+      <circle cx="-4" cy="-7" r="1.6" fill="#fff4e6"/>
+      <circle cx="8" cy="-7" r="1.6" fill="#fff4e6"/>
+      <circle cx="-4" cy="-7" r="0.8" fill="${ink}"/>
+      <circle cx="8" cy="-7" r="0.8" fill="${ink}"/>
+      <circle cx="14" cy="0" r="2" fill="${ink}"/>
+      <path d="M -12 -2 q 12 4 26 0" stroke="${ink}" stroke-width="0.8" opacity="0.4" fill="none"/></g>`;
+    case 'meerkat': return `<g>
+      <circle cx="-11" cy="-14" r="3.5" fill="${f}" stroke="${ink}" stroke-width="1.2"/>
+      <circle cx="11" cy="-14" r="3.5" fill="${f}" stroke="${ink}" stroke-width="1.2"/>
+      <ellipse cx="0" cy="-6" rx="14" ry="15" fill="${f}" stroke="${ink}" stroke-width="1.5"/>
+      <ellipse cx="-5" cy="-6" rx="3.2" ry="3.6" fill="${ink}"/>
+      <ellipse cx="5" cy="-6" rx="3.2" ry="3.6" fill="${ink}"/>
+      <circle cx="-5" cy="-6" r="1.1" fill="#fff4e6"/>
+      <circle cx="5" cy="-6" r="1.1" fill="#fff4e6"/>
+      <polygon points="-4,2 4,2 0,10" fill="${f}" stroke="${ink}" stroke-width="1.2"/>
+      <circle cx="0" cy="8" r="1.4" fill="${ink}"/></g>`;
+    case 'possum': return `<g>
+      <polygon points="-14,-14 -9,-20 -6,-10" fill="${fs}" stroke="${ink}" stroke-width="1.2"/>
+      <polygon points="14,-14 9,-20 6,-10" fill="${fs}" stroke="${ink}" stroke-width="1.2"/>
+      <path d="M -14 -6 q 2 -14 14 -14 q 14 2 18 10 q 0 10 -10 12 q -14 2 -22 -2 Z" fill="${f}" stroke="${ink}" stroke-width="1.5"/>
+      <circle cx="-4" cy="-8" r="1.8" fill="${ink}"/>
+      <circle cx="6" cy="-8" r="1.8" fill="${ink}"/>
+      <circle cx="-3.5" cy="-8.5" r="0.5" fill="#fff4e6"/>
+      <circle cx="6.5" cy="-8.5" r="0.5" fill="#fff4e6"/>
+      <ellipse cx="18" cy="0" rx="3" ry="2.3" fill="${acc}" stroke="${ink}" stroke-width="1"/>
+      <ellipse cx="16" cy="5" rx="2" ry="1" fill="${acc}"/>
+      <g stroke="${ink}" stroke-width="0.7" opacity="0.5">
+        <line x1="14" y1="2" x2="22" y2="0"/>
+        <line x1="14" y1="4" x2="22" y2="5"/>
+      </g></g>`;
+    case 'crow': return `<g>
+      <path d="M -14 -4 q -2 -16 14 -16 q 16 0 16 14 q 0 10 -14 12 q -16 2 -16 -10 Z" fill="${f}" stroke="${ink}" stroke-width="1.5"/>
+      <g fill="${fs}" stroke="${ink}" stroke-width="1">
+        <polygon points="0,-20 3,-26 6,-20"/>
+        <polygon points="-4,-19 -2,-25 1,-19"/>
+      </g>
+      <circle cx="4" cy="-6" r="3.2" fill="#f2eadb" stroke="${ink}" stroke-width="1.3"/>
+      <circle cx="5" cy="-6" r="1.6" fill="${ink}"/>
+      <circle cx="5.3" cy="-6.5" r="0.5" fill="#f2eadb"/>
+      <polygon points="12,-2 26,0 12,4" fill="${acc}" stroke="${ink}" stroke-width="1.3"/>
+      <line x1="12" y1="1" x2="24" y2="1" stroke="${ink}" stroke-width="0.8"/></g>`;
+    case 'hyena': return `<g>
+      <ellipse cx="-12" cy="-16" rx="5" ry="6" fill="${f}" stroke="${ink}" stroke-width="1.3"/>
+      <ellipse cx="12" cy="-16" rx="5" ry="6" fill="${f}" stroke="${ink}" stroke-width="1.3"/>
+      <ellipse cx="-12" cy="-16" rx="2.5" ry="3" fill="${fs}"/>
+      <ellipse cx="12" cy="-16" rx="2.5" ry="3" fill="${fs}"/>
+      <path d="M -16 -4 q 0 -14 16 -14 q 16 0 16 14 q 0 10 -16 12 q -16 -2 -16 -12 Z" fill="${f}" stroke="${ink}" stroke-width="1.6"/>
+      <g fill="${fs}" stroke="${ink}" stroke-width="1.2">
+        <polygon points="-2,-18 0,-24 2,-18"/>
+        <polygon points="-6,-16 -3,-22 0,-16"/>
+        <polygon points="2,-16 5,-22 8,-16"/>
+      </g>
+      <g fill="${fs}">
+        <circle cx="-8" cy="-2" r="1.4"/>
+        <circle cx="6" cy="-6" r="1.2"/>
+        <circle cx="10" cy="2" r="1.4"/>
+      </g>
+      <path d="M -8 -6 q 3 -2 6 0 l 0 1.5 q -3 1 -6 0 Z" fill="#fff4e6" stroke="${ink}" stroke-width="1.1"/>
+      <path d="M 2 -6 q 3 -2 6 0 l 0 1.5 q -3 1 -6 0 Z" fill="#fff4e6" stroke="${ink}" stroke-width="1.1"/>
+      <circle cx="-5" cy="-5.5" r="1" fill="${ink}"/>
+      <circle cx="5" cy="-5.5" r="1" fill="${ink}"/>
+      <path d="M -4 4 q 4 4 8 0 l 0 2 q -4 2 -8 0 Z" fill="${fs}" stroke="${ink}" stroke-width="1.2"/>
+      <circle cx="0" cy="4" r="1.6" fill="${ink}"/>
+      <path d="M -3 8 q 3 3 6 0" stroke="${ink}" stroke-width="1.3" fill="none"/>
+      <polygon points="-2,8 -1,11 0,8" fill="#fff4e6" stroke="${ink}" stroke-width="0.5"/>
+      <polygon points="2,8 3,11 4,8" fill="#fff4e6" stroke="${ink}" stroke-width="0.5"/></g>`;
+  }
+  return '';
+}
+
+function svgBody(p){
+  const f=p.fur,fs=p.furShade,ink=p.ink;
+  return `<g>
+    <ellipse cx="0" cy="16" rx="14" ry="13" fill="${f}" stroke="${ink}" stroke-width="1.6"/>
+    <path d="M -12 14 q 12 8 24 0" fill="${fs}" opacity="0.55"/>
+    <ellipse cx="-15" cy="16" rx="4" ry="7" fill="${f}" stroke="${ink}" stroke-width="1.3"/>
+    <ellipse cx="15" cy="16" rx="4" ry="7" fill="${f}" stroke="${ink}" stroke-width="1.3"/>
+    <rect x="-8" y="26" width="6" height="10" fill="${f}" stroke="${ink}" stroke-width="1.3"/>
+    <rect x="2" y="26" width="6" height="10" fill="${f}" stroke="${ink}" stroke-width="1.3"/>
+    <ellipse cx="-5" cy="37" rx="4.5" ry="2.3" fill="${fs}" stroke="${ink}" stroke-width="1.2"/>
+    <ellipse cx="5" cy="37" rx="4.5" ry="2.3" fill="${fs}" stroke="${ink}" stroke-width="1.2"/>
+  </g>`;
+}
+
+function svgAccessory(faction,unit,p){
+  const ink=p.ink,metal=p.metal,cloth=p.cloth,acc=p.accent;
+  const k=faction+'.'+unit;
+  switch(k){
+    case 'kitty.fiter': return `<g>
+      <ellipse cx="-20" cy="20" rx="10" ry="9" fill="${cloth}" stroke="${ink}" stroke-width="1.6"/>
+      <ellipse cx="20" cy="20" rx="10" ry="9" fill="${cloth}" stroke="${ink}" stroke-width="1.6"/></g>`;
+    case 'kitty.bloker': return `<g>
+      <path d="M -28 4 q 0 -8 8 -8 l 0 28 q -4 6 -8 0 Z" fill="${metal}" stroke="${ink}" stroke-width="1.6"/>
+      <circle cx="-23" cy="14" r="2.5" fill="${acc}" stroke="${ink}" stroke-width="1"/>
+      <rect x="17" y="2" width="3" height="24" fill="${ink}"/>
+      <polygon points="14,-2 22,-2 24,6 13,6" fill="${metal}" stroke="${ink}" stroke-width="1.2"/></g>`;
+    case 'kitty.shoter': return `<g transform="translate(0,8) rotate(-4)">
+      <rect x="-22" y="0" width="40" height="5" fill="${cloth}" stroke="${ink}" stroke-width="1.4"/>
+      <path d="M 16 2 q 8 -8 14 -4" stroke="${ink}" stroke-width="2" fill="none"/>
+      <path d="M 16 2 q 8 8 14 4" stroke="${ink}" stroke-width="2" fill="none"/>
+      <polygon points="-22,2 -30,-1 -30,5" fill="${metal}" stroke="${ink}" stroke-width="0.8"/></g>`;
+    case 'ferret.pickpocket': return `<g>
+      <path d="M -18 -18 q 18 -8 34 0 l -4 8 q -13 -4 -26 0 Z" fill="${cloth}" stroke="${ink}" stroke-width="1.4"/>
+      <rect x="14" y="-4" width="2" height="22" fill="${ink}"/>
+      <circle cx="15" cy="-4" r="6" fill="${p.furShade}" stroke="${ink}" stroke-width="1.2"/>
+      <line x1="11" y1="-8" x2="19" y2="0" stroke="${ink}" stroke-width="0.7"/></g>`;
+    case 'ferret.slinker': return `<g>
+      <g transform="translate(-18,22) rotate(20)">
+        <rect x="-1" y="0" width="2" height="10" fill="${cloth}"/>
+        <polygon points="-3,-8 3,-8 0,0" fill="${metal}" stroke="${ink}" stroke-width="1"/>
+      </g>
+      <g transform="translate(18,22) rotate(-20)">
+        <rect x="-1" y="0" width="2" height="10" fill="${cloth}"/>
+        <polygon points="-3,-8 3,-8 0,0" fill="${metal}" stroke="${ink}" stroke-width="1"/>
+      </g></g>`;
+    case 'meerkat.sentry': return `<g>
+      <rect x="-3" y="-24" width="6" height="10" fill="${metal}" stroke="${ink}" stroke-width="1.2"/>
+      <rect x="-3" y="-26" width="10" height="3" fill="${metal}" stroke="${ink}" stroke-width="1"/>
+      <circle cx="6" cy="-24.5" r="1.4" fill="${acc}"/>
+      <circle cx="6" cy="18" r="2" fill="${metal}" stroke="${ink}" stroke-width="1"/>
+      <line x1="0" y1="6" x2="6" y2="17" stroke="${ink}" stroke-width="0.8"/></g>`;
+    case 'meerkat.phalanx': return `<g>
+      <path d="M -8 -18 l 16 0 l -4 -6 l -8 0 Z" fill="${acc}" stroke="${ink}" stroke-width="1.2"/>
+      <rect x="-30" y="0" width="10" height="30" fill="${metal}" stroke="${ink}" stroke-width="1.6"/>
+      <line x1="-25" y1="0" x2="-25" y2="30" stroke="${ink}" stroke-width="1"/>
+      <circle cx="-25" cy="15" r="2.5" fill="${acc}"/>
+      <rect x="19" y="-16" width="2.5" height="50" fill="${cloth}"/>
+      <polygon points="17,-16 24,-16 20.5,-26" fill="${metal}" stroke="${ink}" stroke-width="1.1"/></g>`;
+    case 'meerkat.burrower': return `<g>
+      <g stroke="${ink}" stroke-width="1.3" fill="none">
+        <rect x="-10" y="-12" width="20" height="6" fill="${metal}"/>
+        <circle cx="-5" cy="-9" r="2.2" fill="${ink}"/>
+        <circle cx="5" cy="-9" r="2.2" fill="${ink}"/>
+      </g>
+      <g transform="translate(18,4) rotate(-30)">
+        <rect x="-1.5" y="-14" width="3" height="32" fill="${cloth}"/>
+        <path d="M -10 -16 l 20 4 l -20 -2 Z" fill="${metal}" stroke="${ink}" stroke-width="1.2"/>
+      </g></g>`;
+    case 'possum.playdead': return `<g transform="translate(10,30) rotate(-80)">
+      <ellipse cx="0" cy="-5" rx="3" ry="1.5" fill="${acc}"/>
+      <path d="M 0 -2 q 2 4 -2 6" stroke="${ink}" stroke-width="0.8" fill="none"/></g>`;
+    case 'possum.scavenger': return `<g>
+      <circle cx="-22" cy="12" r="10" fill="${metal}" stroke="${ink}" stroke-width="1.6"/>
+      <rect x="-14" y="10.5" width="12" height="3" fill="${ink}"/>
+      <circle cx="-22" cy="12" r="5" fill="${p.furShade}"/>
+      <rect x="-8" y="10" width="12" height="10" fill="${metal}" stroke="${ink}" stroke-width="1.1" opacity="0.8"/>
+      <circle cx="-2" cy="15" r="1.4" fill="${ink}"/>
+      <g transform="translate(18,12) rotate(15)">
+        <rect x="-2" y="-10" width="4" height="20" fill="${cloth}" stroke="${ink}" stroke-width="1"/>
+        <polygon points="-5,-12 5,-12 4,-6 -4,-6" fill="${metal}" stroke="${ink}" stroke-width="1"/>
+      </g></g>`;
+    case 'possum.trickster': return `<g>
+      <path d="M -16 -18 q 16 -10 30 0 l -3 10 q -12 -4 -24 0 Z" fill="${cloth}" stroke="${ink}" stroke-width="1.4"/>
+      <g transform="translate(-18,22)">
+        <rect x="-4" y="-4" width="8" height="8" fill="${metal}" stroke="${ink}" stroke-width="1.1"/>
+        <g stroke="${ink}" stroke-width="1" fill="none" opacity="0.55">
+          <path d="M -2 -6 q -2 -6 2 -10"/>
+          <path d="M 2 -6 q 2 -6 -2 -10"/>
+        </g>
+      </g>
+      <g fill="${ink}">
+        <polygon points="16,34 18,30 20,34 18,38"/>
+        <polygon points="22,36 24,33 26,36 24,39"/>
+      </g></g>`;
+    case 'crow.messenger': return `<g>
+      <rect x="-20" y="14" width="10" height="12" fill="${cloth}" stroke="${ink}" stroke-width="1.3"/>
+      <rect x="-18" y="12" width="6" height="3" fill="${p.paper}" stroke="${ink}" stroke-width="0.9"/>
+      <circle cx="-5" cy="34" r="2.5" fill="${acc}" stroke="${ink}" stroke-width="1"/>
+      <path d="M -14 8 q -6 8 -2 20" fill="${p.furShade}" stroke="${ink}" stroke-width="1.2"/>
+      <path d="M 14 8 q 6 8 2 20" fill="${p.furShade}" stroke="${ink}" stroke-width="1.2"/></g>`;
+    case 'crow.divestriker': return `<g>
+      <g stroke="${ink}" stroke-width="1.3" fill="none">
+        <circle cx="-4" cy="-7" r="3.4" fill="${metal}"/>
+        <circle cx="6" cy="-7" r="3.4" fill="${metal}"/>
+        <path d="M -7 -10 l -3 -2 M 10 -10 l 3 -2"/>
+      </g>
+      <path d="M 14 0 l 26 -4 l -4 8 l -22 4 Z" fill="${metal}" stroke="${ink}" stroke-width="1.4"/>
+      <path d="M 40 -4 q 8 4 6 10" stroke="${ink}" stroke-width="1.3" fill="none"/>
+      <path d="M -14 6 q -14 10 -18 22 q 10 -2 18 -8 Z" fill="${p.furShade}" stroke="${ink}" stroke-width="1.3"/></g>`;
+    case 'crow.tooluser': return `<g>
+      <g transform="translate(-18,18) rotate(-20)">
+        <rect x="-2" y="-2" width="18" height="4" fill="${metal}" stroke="${ink}" stroke-width="1.1"/>
+        <path d="M -8 -4 l 0 8 l -5 0 l -2 -4 l 2 -4 Z" fill="${metal}" stroke="${ink}" stroke-width="1.1"/>
+      </g>
+      <path d="M 10 4 q 20 4 12 24 q -10 4 -14 -8" fill="none" stroke="${ink}" stroke-width="1.6"/></g>`;
+    case 'hyena.howler': return `<g>
+      <g stroke="${acc}" stroke-width="2.5" opacity="0.85" stroke-linecap="round">
+        <line x1="-10" y1="-4" x2="-4" y2="-2"/>
+        <line x1="4" y1="-4" x2="10" y2="-2"/>
+        <line x1="-8" y1="2" x2="8" y2="4"/>
+      </g>
+      <circle cx="-18" cy="8" r="4" fill="${p.fur}" stroke="${ink}" stroke-width="1.3"/>
+      <circle cx="18" cy="8" r="4" fill="${p.fur}" stroke="${ink}" stroke-width="1.3"/></g>`;
+    case 'hyena.brute': return `<g>
+      <rect x="-19" y="16" width="8" height="6" fill="${cloth}" stroke="${ink}" stroke-width="1.2"/>
+      <rect x="11" y="16" width="8" height="6" fill="${cloth}" stroke="${ink}" stroke-width="1.2"/>
+      <g fill="${metal}">
+        <circle cx="-17" cy="19" r="0.9"/><circle cx="-14" cy="19" r="0.9"/>
+        <circle cx="13" cy="19" r="0.9"/><circle cx="16" cy="19" r="0.9"/>
+      </g>
+      <g transform="translate(16,8) rotate(20)">
+        <rect x="-3" y="-8" width="6" height="26" fill="${cloth}" stroke="${ink}" stroke-width="1.3"/>
+        <path d="M -7 -10 q 7 -6 14 0 l -2 10 l -10 0 Z" fill="${p.furShade}" stroke="${ink}" stroke-width="1.4"/>
+        <g fill="${ink}">
+          <circle cx="-4" cy="-6" r="0.9"/>
+          <circle cx="2" cy="-8" r="0.9"/>
+          <circle cx="5" cy="-3" r="0.9"/>
+        </g>
+      </g></g>`;
+    case 'hyena.warlord': return `<g>
+      <path d="M -22 8 q 6 -6 14 -2 l 0 8 q -8 2 -14 -2 Z" fill="${metal}" stroke="${ink}" stroke-width="1.4"/>
+      <path d="M 22 8 q -6 -6 -14 -2 l 0 8 q 8 2 14 -2 Z" fill="${metal}" stroke="${ink}" stroke-width="1.4"/>
+      <g fill="${ink}">
+        <polygon points="-20,6 -18,0 -16,6"/>
+        <polygon points="-16,6 -14,-2 -12,6"/>
+        <polygon points="20,6 18,0 16,6"/>
+        <polygon points="16,6 14,-2 12,6"/>
+      </g>
+      <rect x="-14" y="24" width="28" height="4" fill="${cloth}" stroke="${ink}" stroke-width="1"/>
+      <g fill="${p.paper}" stroke="${ink}" stroke-width="0.7">
+        <polygon points="-10,28 -8,32 -6,28"/>
+        <polygon points="-2,28 0,33 2,28"/>
+        <polygon points="6,28 8,32 10,28"/>
+      </g>
+      <g transform="translate(18,6) rotate(20)">
+        <rect x="-1.5" y="-14" width="3" height="32" fill="${cloth}"/>
+        <path d="M -10 -14 l 20 4 l -20 4 Z" fill="${metal}" stroke="${ink}" stroke-width="1.4"/>
+        <path d="M -10 -6 l 20 4 l -20 4 Z" fill="${metal}" stroke="${ink}" stroke-width="1.4"/>
+      </g></g>`;
+  }
+  return '';
+}
+
+function svgHeroHead(heroId,p){
+  const ink=p.ink,f=p.fur,fs=p.furShade,acc=p.accent,cloth=p.cloth,cloth2=p.cloth2;
+  // Ears
+  let ears=`<polygon points="-18,-14 -10,-24 -6,-12" fill="${f}" stroke="${ink}" stroke-width="1.6"/>
+    <polygon points="-14,-16 -10,-22 -8,-14" fill="${fs}"/>
+    <polygon points="18,-14 10,-24 6,-12" fill="${f}" stroke="${ink}" stroke-width="1.6"/>
+    <polygon points="14,-16 10,-22 8,-14" fill="${fs}"/>`;
+  if(heroId==='gritty') ears+=`<polygon points="-10,-24 -7,-20 -10,-20" fill="${ink}"/>`;
+  if(heroId==='pritty') ears+=`<g transform="translate(0,-22)">
+    <polygon points="0,0 -6,-4 -6,4" fill="${acc}" stroke="${ink}" stroke-width="1.2"/>
+    <polygon points="0,0 6,-4 6,4" fill="${acc}" stroke="${ink}" stroke-width="1.2"/>
+    <circle r="2" fill="${acc}" stroke="${ink}" stroke-width="1.2"/></g>`;
+  // Head circle
+  let head=`<circle cx="0" cy="0" r="22" fill="${f}" stroke="${ink}" stroke-width="1.8"/>
+    <path d="M -20 4 q 4 10 14 12" fill="${fs}" opacity="0.5"/>`;
+  // Per-hero accessories on head
+  if(heroId==='hitty') head+=`<path d="M -22 -8 q 22 -8 44 0 l -2 6 q -20 -6 -40 0 Z" fill="${cloth}" stroke="${ink}" stroke-width="1.5"/>`;
+  if(heroId==='shitty') head+=`<rect x="-14" y="-12" width="18" height="5" fill="${cloth2}" stroke="${ink}" stroke-width="1.2" transform="rotate(-8)"/>
+    <circle cx="10" cy="8" r="2.2" fill="${fs}" opacity="0.7"/>`;
+  if(heroId==='gritty') head+=`<line x1="3" y1="-8" x2="10" y2="2" stroke="${ink}" stroke-width="1.2"/>`;
+  if(heroId==='skitty') head+=`<path d="M 18 -4 q 4 4 2 7 q -4 0 -2 -7 Z" fill="#9cd1ff" stroke="${ink}" stroke-width="1"/>`;
+  // Eyes (neutral for sprites)
+  let eyes=`<ellipse cx="-6" cy="-2" rx="3.4" ry="3.4" fill="#fff4e6" stroke="${ink}" stroke-width="1.5"/>
+    <ellipse cx="6" cy="-2" rx="3.4" ry="3.4" fill="#fff4e6" stroke="${ink}" stroke-width="1.5"/>
+    <circle cx="-6" cy="-2" r="1.8" fill="${ink}"/>
+    <circle cx="6" cy="-2" r="1.8" fill="${ink}"/>
+    <circle cx="-5" cy="-3" r="0.6" fill="#fff4e6"/>
+    <circle cx="7" cy="-3" r="0.6" fill="#fff4e6"/>`;
+  if(heroId==='gritty') eyes+=`<g fill="${ink}">
+    <path d="M -10 -6 q 4 3 8 0 l 0 2 q -4 2 -8 0 Z"/>
+    <path d="M 2 -6 q 4 3 8 0 l 0 2 q -4 2 -8 0 Z"/>
+  </g>`;
+  if(heroId==='skitty') eyes=`<ellipse cx="-6" cy="-2" rx="4.5" ry="5.5" fill="#fff4e6" stroke="${ink}" stroke-width="1.5"/>
+    <ellipse cx="6" cy="-2" rx="4.5" ry="5.5" fill="#fff4e6" stroke="${ink}" stroke-width="1.5"/>
+    <circle cx="-6" cy="-1" r="1.1" fill="${ink}"/>
+    <circle cx="6" cy="-1" r="1.1" fill="${ink}"/>`;
+  if(heroId==='witty') eyes+=`<g stroke="${ink}" stroke-width="1.6" fill="none">
+    <circle cx="-6" cy="-2" r="5.2"/>
+    <circle cx="6" cy="-2" r="5.2"/>
+    <line x1="-1" y1="-2" x2="1" y2="-2"/>
+  </g>`;
+  // Nose + mouth
+  let nose=`<polygon points="-1.5,4 1.5,4 0,6.2" fill="${p.nose}"/>`;
+  let mouth=`<g stroke="${ink}" stroke-width="1.5" fill="none" stroke-linecap="round">
+    <path d="M 0 7 q -3 3 -5 1"/>
+    <path d="M 0 7 q 3 3 5 1"/>
+  </g>`;
+  // Whiskers
+  let whiskers=`<g stroke="${ink}" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.7">
+    <line x1="-8" y1="6" x2="-18" y2="${heroId==='shitty'?10:4}"/>
+    <line x1="-8" y1="8" x2="-18" y2="${heroId==='shitty'?13:8}"/>
+    <line x1="8" y1="6" x2="18" y2="4"/>
+    <line x1="8" y1="8" x2="18" y2="8"/>
+  </g>`;
+  // Blush for Pritty
+  let extra='';
+  if(heroId==='pritty') extra=`<g fill="${acc}" opacity="0.5">
+    <ellipse cx="-12" cy="6" rx="3" ry="1.6"/>
+    <ellipse cx="12" cy="6" rx="3" ry="1.6"/>
+  </g>`;
+  return `<g>${ears}${head}${eyes}${nose}${mouth}${whiskers}${extra}</g>`;
+}
+
+function svgHeroWeapon(heroId,p){
+  const ink=p.ink,metal=p.metal,ms=p.metalShade,acc=p.accent,cloth=p.cloth,cloth2=p.cloth2;
+  switch(heroId){
+    case 'hitty': return `<g>
+      <g transform="translate(-18,8)">
+        <ellipse cx="0" cy="0" rx="14" ry="12" fill="${cloth}" stroke="${ink}" stroke-width="1.8"/>
+        <path d="M -8 -2 q 8 6 16 0" stroke="${ink}" stroke-width="1.4" fill="none"/>
+        <rect x="-4" y="10" width="8" height="4" fill="${cloth2}" stroke="${ink}" stroke-width="1.2"/>
+      </g>
+      <g transform="translate(18,12) rotate(10)">
+        <ellipse cx="0" cy="0" rx="14" ry="12" fill="${cloth}" stroke="${ink}" stroke-width="1.8"/>
+        <path d="M -8 -2 q 8 6 16 0" stroke="${ink}" stroke-width="1.4" fill="none"/>
+        <rect x="-4" y="10" width="8" height="4" fill="${cloth2}" stroke="${ink}" stroke-width="1.2"/>
+      </g></g>`;
+    case 'gritty': return `<g transform="translate(18,10)">
+      <g stroke="${ink}" stroke-width="1.3" fill="none">
+        <circle cx="-14" cy="-10" r="2"/>
+        <circle cx="-10" cy="-4" r="2"/>
+        <circle cx="-4" cy="0" r="2"/>
+      </g>
+      <rect x="-2" y="-2" width="18" height="10" rx="2" fill="${metal}" stroke="${ink}" stroke-width="1.6"/>
+      <g fill="${ms}">
+        <rect x="0" y="0" width="4" height="6"/>
+        <rect x="6" y="0" width="4" height="6"/>
+        <rect x="12" y="0" width="3" height="6"/>
+      </g></g>`;
+    case 'witty': return `<g transform="translate(-14,-2) rotate(-10)">
+      <rect x="-1.5" y="-18" width="3" height="34" fill="${cloth}" stroke="${ink}" stroke-width="1.2"/>
+      <rect x="-10" y="-22" width="20" height="10" fill="${cloth2}" stroke="${ink}" stroke-width="1.4"/>
+      <g stroke="${ink}" stroke-width="0.8">
+        <line x1="-6" y1="-19" x2="6" y2="-19"/>
+        <line x1="-6" y1="-16" x2="4" y2="-16"/>
+        <line x1="-6" y1="-13" x2="2" y2="-13"/>
+      </g>
+      <circle cx="0" cy="16" r="3" fill="${acc}" stroke="${ink}" stroke-width="1.2"/></g>`;
+    case 'pritty': return `<g>
+      <g transform="translate(16,-4)">
+        <rect x="-1" y="-20" width="2" height="34" fill="${cloth}" stroke="${ink}" stroke-width="1"/>
+        <path d="M -14 -20 q 14 -10 28 0 z" fill="${cloth2}" stroke="${ink}" stroke-width="1.4"/>
+        <circle cx="0" cy="14" r="2" fill="${acc}"/>
+      </g>
+      <g transform="translate(-16,4)">
+        <circle r="10" fill="${cloth2}" stroke="${ink}" stroke-width="1.6"/>
+        <circle r="6" fill="${metal}" stroke="${ink}" stroke-width="1.2"/>
+      </g></g>`;
+    case 'skitty': return `<g transform="translate(2,4) rotate(-5)">
+      <rect x="-22" y="-3" width="44" height="6" fill="${cloth}" stroke="${ink}" stroke-width="1.6"/>
+      <path d="M 20 0 q 8 -8 16 -4" stroke="${ink}" stroke-width="2.2" fill="none"/>
+      <path d="M 20 0 q 8 8 16 4" stroke="${ink}" stroke-width="2.2" fill="none"/>
+      <line x1="36" y1="-4" x2="36" y2="4" stroke="${ink}" stroke-width="1"/>
+      <polygon points="-22,0 -30,-3 -30,3" fill="${metal}" stroke="${ink}" stroke-width="1"/></g>`;
+    case 'shitty': return `<g>
+      <g transform="translate(18,4)">
+        <rect x="-2" y="-4" width="4" height="14" fill="${cloth}" stroke="${ink}" stroke-width="1.3"/>
+        <path d="M -10 -16 L 10 -16 L 12 -4 L -6 -4 Z" fill="${metal}" stroke="${ink}" stroke-width="1.6"/>
+        <path d="M -4 -10 l 4 4 M 4 -14 l 2 4" stroke="${ink}" stroke-width="1"/>
+      </g>
+      <g transform="translate(-18,2) rotate(-20)">
+        <rect x="-1" y="-10" width="2" height="20" fill="${metal}" stroke="${ink}" stroke-width="1"/>
+        <polygon points="0,-16 5,-10 0,-4 -5,-10" fill="${acc}" stroke="${ink}" stroke-width="1.2"/>
+      </g></g>`;
+  }
+  return '';
+}
+
+function svgHeroBody(p,heroId){
+  const f=p.fur,fs=p.furShade,ink=p.ink,acc=p.accent;
+  let extra='';
+  if(heroId==='pritty') extra=`<polygon points="0,-2 -6,6 0,12 6,6" fill="${acc}" opacity="0.85" stroke="${ink}" stroke-width="1.1"/>`;
+  if(heroId==='hitty') extra=`<rect x="-5" y="0" width="10" height="10" fill="${acc}" opacity="0.7"/>`;
+  if(heroId==='shitty') extra=`<ellipse cx="0" cy="6" rx="6" ry="3" fill="${p.cloth2}" opacity="0.8"/>`;
+  return `<g transform="translate(0,18)">
+    <path d="M -16 -4 q -10 -12 -4 -20 q 6 -4 4 6" fill="${f}" stroke="${ink}" stroke-width="1.6"/>
+    <ellipse cx="0" cy="8" rx="16" ry="14" fill="${f}" stroke="${ink}" stroke-width="1.8"/>
+    <path d="M -14 6 q 14 8 28 0" fill="${fs}" opacity="0.55"/>
+    <rect x="-10" y="18" width="7" height="10" fill="${f}" stroke="${ink}" stroke-width="1.5"/>
+    <rect x="3" y="18" width="7" height="10" fill="${f}" stroke="${ink}" stroke-width="1.5"/>
+    <ellipse cx="-6.5" cy="29" rx="5" ry="2.5" fill="${fs}" stroke="${ink}" stroke-width="1.3"/>
+    <ellipse cx="6.5" cy="29" rx="5" ry="2.5" fill="${fs}" stroke="${ink}" stroke-width="1.3"/>
+    ${extra}
+  </g>`;
+}
+
+function buildUnitSVG(faction,unitId){
+  const p=FACTION_PALETTES[faction];
+  if(!p)return null;
+  const isPlaydead=(faction==='possum'&&unitId==='playdead');
+  let inner='';
+  if(isPlaydead){
+    inner=`<g transform="translate(0,30) rotate(-80)">
+      ${svgBody(p)}
+      <g transform="translate(0,-12)">${svgHead(faction,p)}</g>
+      ${svgAccessory(faction,unitId,p)}
+    </g>`;
+  } else {
+    inner=`${svgBody(p)}<g transform="translate(0,-4)">${svgHead(faction,p)}</g>${svgAccessory(faction,unitId,p)}`;
+  }
+  return `<svg viewBox="-40 -34 80 90" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="0" cy="40" rx="22" ry="3.5" fill="${p.ink}" opacity="0.18"/>
+    ${inner}
+  </svg>`;
+}
+
+function buildHeroSVG(heroId){
+  const p=HERO_PALETTES[heroId];
+  if(!p)return null;
+  return `<svg viewBox="-60 -80 120 150" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="0" cy="56" rx="28" ry="5" fill="${p.ink}" opacity="0.2"/>
+    ${svgHeroBody(p,heroId)}
+    <g transform="translate(0,-12)">${svgHeroHead(heroId,p)}</g>
+    ${svgHeroWeapon(heroId,p)}
+  </svg>`;
+}
+
+function svgToImage(svgStr){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=()=>resolve(null);
+    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgStr);
+  });
+}
+
+async function preloadSprites(){
+  const promises=[];
+  // Unit sprites for each faction
+  Object.entries(F).forEach(([fac,fdata])=>{
+    Object.keys(fdata.units).forEach(uid=>{
+      const svg=buildUnitSVG(fac,uid);
+      if(svg){
+        const key=fac+'.'+uid;
+        promises.push(svgToImage(svg).then(img=>{if(img)SPRITES[key]=img}));
+      }
+    });
+  });
+  // Hero sprites
+  Object.keys(HEROES).forEach(hid=>{
+    const svg=buildHeroSVG(hid);
+    if(svg){
+      const key='hero.'+hid;
+      promises.push(svgToImage(svg).then(img=>{if(img)SPRITES[key]=img}));
+    }
+  });
+  await Promise.all(promises);
+  spritesReady=true;
+}
+
+// ================================================================
+// TERRAIN — Updated warm palette from tiles.jsx
+// ================================================================
+const T={
+    PLAINS:  {id:'plains',  c:'#e8e0c8',name:'Plains',  mc:1,def:0},
+    FOREST:  {id:'forest',  c:'#6a8a5f',name:'Forest',  mc:2,def:1},
+    MOUNTAIN:{id:'mountain',c:'#c7bdae',name:'Mountain',mc:3,def:2},
+    WATER:   {id:'water',   c:'#5e8aab',name:'Water',   mc:-1,def:0},
+    CITY:    {id:'city',    c:'#f2eadb',name:'City',     mc:1,def:1},
+};
+
+// ================================================================
+// FACTIONS — 6 total, each with unique units (updated IDs/names)
 // ================================================================
 const F={
     kitty:{
@@ -124,47 +622,46 @@ const F={
     ferret:{
         name:'Ferret City',col:'#7c4dff',dk:'#5533cc',
         units:{
-            thief:   {n:'Thief',   ic:'🗡',hp:8, atk:3,def:0,mv:3,rng:1,cost:4,d:'Steals 2 catnips on kill'},
-            skulker: {n:'Skulker', ic:'👤',hp:10,atk:4,def:1,mv:2,rng:1,cost:6,d:'+3 ATK from forest'},
-            raider:  {n:'Raider',  ic:'⚡',hp:9, atk:3,def:1,mv:3,rng:1,cost:5,d:'Fast strike'},
-            snatcher:{n:'Snatcher',ic:'🎒',hp:6, atk:1,def:0,mv:4,rng:1,cost:3,d:'Steals city income'},
+            pickpocket:{n:'Pickpocket',ic:'🗡',hp:8, atk:3,def:0,mv:3,rng:1,cost:4,d:'Steals 2 catnips on kill'},
+            slinker:   {n:'Slinker',   ic:'👤',hp:10,atk:4,def:1,mv:2,rng:1,cost:6,d:'+3 ATK from forest'},
+            raider:    {n:'Raider',    ic:'⚡',hp:9, atk:3,def:1,mv:3,rng:1,cost:5,d:'Fast strike'},
+            snatcher:  {n:'Snatcher',  ic:'🎒',hp:6, atk:1,def:0,mv:4,rng:1,cost:3,d:'Steals city income'},
         },
-        // AI: opportunistic, targets whoever has most resources
         aiStyle:'opportunist',
     },
     meerkat:{
         name:'Meerkat Burrows',col:'#ff9800',dk:'#bf6000',
         units:{
-            grunt:     {n:'Grunt',     ic:'🐿',hp:7, atk:2,def:1,mv:2,rng:1,cost:3,d:'Cheap and plentiful'},
-            burrower:  {n:'Burrower',  ic:'⛏',hp:9, atk:3,def:2,mv:2,rng:1,cost:5,d:'Mountains cost 1 move'},
-            marshaller:{n:'Marshaller',ic:'📯',hp:8, atk:2,def:2,mv:1,rng:1,cost:6,d:'Adjacent meerkats +1 ATK/DEF'},
+            sentry:  {n:'Sentry',  ic:'🐿',hp:7, atk:2,def:1,mv:2,rng:1,cost:3,d:'Cheap and plentiful'},
+            burrower:{n:'Burrower',ic:'⛏',hp:9, atk:3,def:2,mv:2,rng:1,cost:5,d:'Mountains cost 1 move'},
+            phalanx: {n:'Phalanx', ic:'📯',hp:8, atk:2,def:2,mv:1,rng:1,cost:6,d:'Adjacent meerkats +1 ATK/DEF'},
         },
         aiStyle:'territorial',
     },
     possum:{
         name:'Possum Town',col:'#78909c',dk:'#4b636e',
         units:{
-            scrapper:  {n:'Scrapper',  ic:'🐾',hp:8, atk:3,def:1,mv:2,rng:1,cost:4,d:'Basic scrapper'},
-            faker:     {n:'Faker',     ic:'💀',hp:9, atk:2,def:1,mv:2,rng:1,cost:5,d:'Survives first lethal hit at 1 HP'},
-            nightrunner:{n:'Nightrunner',ic:'🌙',hp:7,atk:4,def:0,mv:3,rng:1,cost:5,d:'+2 ATK when initiating'},
+            scavenger:{n:'Scavenger',     ic:'🐾',hp:8, atk:3,def:1,mv:2,rng:1,cost:4,d:'Basic scrapper'},
+            playdead: {n:'Player-Dead',   ic:'💀',hp:9, atk:2,def:1,mv:2,rng:1,cost:5,d:'Survives first lethal hit at 1 HP'},
+            trickster:{n:'Night-Trickster',ic:'🌙',hp:7,atk:4,def:0,mv:3,rng:1,cost:5,d:'+2 ATK when initiating'},
         },
         aiStyle:'scavenger',
     },
     crow:{
         name:"Crow's Nest",col:'#607d8b',dk:'#37474f',
         units:{
-            cawer:     {n:'Cawer',     ic:'🐦',hp:7, atk:3,def:0,mv:2,rng:2,cost:5,d:'Ranged attacker'},
-            divebomber:{n:'Divebomber',ic:'💨',hp:8, atk:5,def:0,mv:3,rng:1,cost:6,d:'High ATK, fragile'},
-            lookout:   {n:'Lookout',   ic:'👁',hp:6, atk:2,def:0,mv:2,rng:3,cost:6,d:'Long range, +3 vision'},
+            messenger:  {n:'Messenger',   ic:'🐦',hp:7, atk:3,def:0,mv:2,rng:2,cost:5,d:'Ranged attacker'},
+            divestriker:{n:'Dive-Striker', ic:'💨',hp:8, atk:5,def:0,mv:3,rng:1,cost:6,d:'High ATK, fragile'},
+            tooluser:   {n:'Tool-User',   ic:'👁',hp:6, atk:2,def:0,mv:2,rng:3,cost:6,d:'Long range, +3 vision'},
         },
         aiStyle:'grudge',
     },
     hyena:{
         name:'Hyena Heights',col:'#8d6e63',dk:'#5d4037',
         units:{
-            brawler:  {n:'Brawler',  ic:'💪',hp:12,atk:4,def:2,mv:2,rng:1,cost:5,d:'Strong all-rounder'},
-            howler:   {n:'Howler',   ic:'🔊',hp:10,atk:3,def:1,mv:2,rng:1,cost:6,d:'Adjacent enemies -1 ATK'},
-            pitfighter:{n:'Pitfighter',ic:'🩸',hp:14,atk:3,def:1,mv:1,rng:1,cost:7,d:'+ATK as HP drops'},
+            brute:  {n:'Brute',  ic:'💪',hp:12,atk:4,def:2,mv:2,rng:1,cost:5,d:'Strong all-rounder'},
+            howler: {n:'Howler', ic:'🔊',hp:10,atk:3,def:1,mv:2,rng:1,cost:6,d:'Adjacent enemies -1 ATK'},
+            warlord:{n:'Warlord',ic:'🩸',hp:14,atk:3,def:1,mv:1,rng:1,cost:7,d:'+ATK as HP drops'},
         },
         aiStyle:'dominant',
     },
@@ -221,7 +718,7 @@ let mvHL=[],atHL=[];
 let drag=false,dragS={x:0,y:0},camS={x:0,y:0};
 let mmC,mmX;
 let forgeOpen=false,fogOn=true,aiMode='defensive';
-let difficulty='normal'; // easy=15, normal=10, hard=5, crazy=0
+let difficulty='normal';
 const PEACE_TURNS={easy:15,normal:10,hard:5,crazy:0};
 let mq=[];
 
@@ -258,15 +755,12 @@ function genMap(){
         if(c>.78) t=T.MOUNTAIN;
         const wn=pn(q*2.3+seed+500,r*2.7+seed+600);
         if(wn>.88&&hD({q,r},{q:0,r:0})>2) t=T.WATER;
-        // Clear near all capitals
         Object.values(CAPITALS).forEach(cap=>{if(hD({q,r},{q:cap.q,r:cap.r})<=2)t=T.PLAINS});
         tiles[hK(q,r)]={q,r,terrain:t,owner:null,isCity:false,cityName:null,prod:0,isCapital:false,cityLevel:0,visible:false,explored:false};
     }
-    // Place capitals
     Object.entries(CAPITALS).forEach(([fac,cap])=>{
         setCity(tiles,cap.q,cap.r,fac,cap.name,4,true);
     });
-    // Neutral villages — scattered between factions
     const vs=[
         {q:4,r:-2},{q:5,r:1},{q:1,r:4},{q:-2,r:5},{q:-4,r:5},{q:-5,r:0},{q:-4,r:-3},{q:-1,r:-4},{q:2,r:-4},
         {q:0,r:2},{q:2,r:0},{q:-2,r:0},{q:0,r:-2},{q:6,r:-6},{q:-6,r:-2},{q:3,r:-7},{q:-3,r:3},{q:6,r:3},
@@ -302,7 +796,7 @@ function createGame(){
             icon:tmpl.ic,name:heroId?tmpl.name:tmpl.n,
             isHero:!!heroId,heroId:heroId||null,
             xp:0,level:1,kills:0,
-            fakerUsed:false, // for possum fakers
+            fakerUsed:false,
         };
     };
     // Kitty starting units
@@ -310,16 +804,16 @@ function createGame(){
     mk('kitty','fiter',1,0,'pritty');mk('kitty','fiter',-1,0,'skitty');mk('kitty','fiter',1,-1,'shitty');
     mk('kitty','fiter',0,1,null);mk('kitty','bloker',-1,2,null);
 
-    // Ferret starting units
-    mk('ferret','thief',8,-4);mk('ferret','raider',8,-5);mk('ferret','skulker',7,-3);mk('ferret','raider',9,-5);
-    // Meerkat starting units — more, cheaper
-    mk('meerkat','grunt',3,7);mk('meerkat','grunt',3,6);mk('meerkat','grunt',4,6);mk('meerkat','grunt',2,7);mk('meerkat','marshaller',4,7);
-    // Possum starting units
-    mk('possum','scrapper',-6,8);mk('possum','faker',-6,7);mk('possum','nightrunner',-5,7);
-    // Crow starting units
-    mk('crow','cawer',-8,2);mk('crow','cawer',-7,2);mk('crow','divebomber',-8,3);mk('crow','lookout',-7,1);
-    // Hyena starting units — fewer but strong
-    mk('hyena','brawler',-2,-8);mk('hyena','brawler',-3,-7);mk('hyena','howler',-1,-8);
+    // Ferret starting units (updated IDs)
+    mk('ferret','pickpocket',8,-4);mk('ferret','raider',8,-5);mk('ferret','slinker',7,-3);mk('ferret','raider',9,-5);
+    // Meerkat starting units (updated IDs)
+    mk('meerkat','sentry',3,7);mk('meerkat','sentry',3,6);mk('meerkat','sentry',4,6);mk('meerkat','sentry',2,7);mk('meerkat','phalanx',4,7);
+    // Possum starting units (updated IDs)
+    mk('possum','scavenger',-6,8);mk('possum','playdead',-6,7);mk('possum','trickster',-5,7);
+    // Crow starting units (updated IDs)
+    mk('crow','messenger',-8,2);mk('crow','messenger',-7,2);mk('crow','divestriker',-8,3);mk('crow','tooluser',-7,1);
+    // Hyena starting units (updated IDs)
+    mk('hyena','brute',-2,-8);mk('hyena','brute',-3,-7);mk('hyena','howler',-1,-8);
 
     const aiFactions=['ferret','meerkat','possum','crow','hyena'];
     const res={};
@@ -328,13 +822,13 @@ function createGame(){
 
     return{
         tiles,units,turn:1,currentFaction:'kitty',
-        res, // resources (catnips) per faction
+        res,
         nextUid:uid,log:[],gameOver:false,
         forgeLevel:0,fb:{mAtk:0,aDef:0,regen:0},
         unlocked:{fiter:true,bloker:true,shoter:false,crusher:false},
         flags:{},firedEvents:new Set(),improvements:{},
-        grudges:{}, // crow grudge tracking: {crow: 'faction_that_last_hit_them'}
-        provoked:{}, // tracks which factions have been attacked during peace: {ferret:true, ...}
+        grudges:{},
+        provoked:{},
         capturedCaps:0,
     };
 }
@@ -399,7 +893,6 @@ function getReach(unit){
         hN(cur.q,cur.r).forEach(n=>{
             const k=hK(n.q,n.r),tile=G.tiles[k];if(!tile)return;
             let mc=tile.terrain.mc;if(mc<0)return;
-            // Burrower: mountains cost 1
             if(unit.type==='burrower'&&tile.terrain.id==='mountain')mc=1;
             const blocker=unitAt(n.q,n.r);if(blocker&&blocker.faction!==unit.faction)return;
             const nc=cur.cost+mc;
@@ -419,7 +912,7 @@ function getAtk(unit){
 function unitAt(q,r){return Object.values(G.units).find(u=>u.q===q&&u.r===r)}
 
 // ================================================================
-// COMBAT
+// COMBAT (updated unit type references)
 // ================================================================
 function getCityDef(tile){
     if(!tile)return 0;
@@ -437,28 +930,28 @@ function combat(atk,def){
     let dp=def.def+tDef+(g.fb.aDef&&def.faction==='kitty'?g.fb.aDef:0);
 
     // Faction-specific attack bonuses
-    if(atk.type==='skulker'){const at=g.tiles[hK(atk.q,atk.r)];if(at&&at.terrain.id==='forest')ap+=3}
+    if(atk.type==='slinker'){const at=g.tiles[hK(atk.q,atk.r)];if(at&&at.terrain.id==='forest')ap+=3}
     if(atk.type==='crusher'&&dTile&&dTile.isCity)ap+=3;
     if(atk.heroId==='skitty'&&Math.random()<.25){ap*=2;addLog('Skitty panics — accidental devastation!','combat')}
     if(atk.heroId==='shitty'){ap+=2;atk.hp-=1}
-    if(atk.type==='nightrunner')ap+=2; // nightrunner initiator bonus
-    // Pitfighter: +ATK as HP drops
-    if(atk.type==='pitfighter'){const missing=atk.maxHp-atk.hp;ap+=Math.floor(missing/3)}
+    if(atk.type==='trickster')ap+=2; // trickster initiator bonus
+    // Warlord: +ATK as HP drops
+    if(atk.type==='warlord'){const missing=atk.maxHp-atk.hp;ap+=Math.floor(missing/3)}
     // Howler debuff on defender
     if(def.type!=='howler'){
         const nearHowlers=Object.values(g.units).filter(u=>u.type==='howler'&&u.faction===atk.faction&&hD({q:u.q,r:u.r},{q:def.q,r:def.r})<=1);
         if(nearHowlers.length)dp=Math.max(0,dp-1);
     }
-    // Marshaller buff
-    const nearMarsh=Object.values(g.units).filter(u=>u.type==='marshaller'&&u.faction===atk.faction&&hD({q:u.q,r:u.r},{q:atk.q,r:atk.r})<=1);
-    if(nearMarsh.length&&atk.faction==='meerkat'){ap+=1;dp=Math.max(0,dp)}
+    // Phalanx buff
+    const nearPhalanx=Object.values(g.units).filter(u=>u.type==='phalanx'&&u.faction===atk.faction&&hD({q:u.q,r:u.r},{q:atk.q,r:atk.r})<=1);
+    if(nearPhalanx.length&&atk.faction==='meerkat'){ap+=1;dp=Math.max(0,dp)}
 
     let dmg=Math.max(1,Math.round(ap-dp*.4+(Math.random()*2-.5)));
     def.hp-=dmg;
     addLog(`${atk.name} hits ${def.name} for ${dmg}`,'combat');
 
-    // Faker: survive first lethal hit
-    if(def.hp<=0&&def.type==='faker'&&!def.fakerUsed){
+    // Playdead: survive first lethal hit
+    if(def.hp<=0&&def.type==='playdead'&&!def.fakerUsed){
         def.hp=1;def.fakerUsed=true;
         addLog(`${def.name} plays dead... then gets back up!`,'combat');
     }
@@ -467,23 +960,22 @@ function combat(atk,def){
     if(def.hp>0&&hD({q:atk.q,r:atk.r},{q:def.q,r:def.r})<=def.rng){
         let cp=def.atk+(def._rally||0);
         if(def.heroId==='gritty')cp+=2;
-        if(def.type==='pitfighter'){const m=def.maxHp-def.hp;cp+=Math.floor(m/3)}
+        if(def.type==='warlord'){const m=def.maxHp-def.hp;cp+=Math.floor(m/3)}
         const cd=Math.max(1,Math.round(cp*.5-(atk.def+(g.fb.aDef&&atk.faction==='kitty'?g.fb.aDef:0))*.3+Math.random()));
         atk.hp-=cd;addLog(`${def.name} counters for ${cd}`,'combat');
     }
 
-    // Thief steal
-    if(atk.type==='thief'&&def.hp<=0){
+    // Pickpocket steal
+    if(atk.type==='pickpocket'&&def.hp<=0){
         g.res[atk.faction]=(g.res[atk.faction]||0)+2;
         g.res[def.faction]=Math.max(0,(g.res[def.faction]||0)-2);
-        addLog('Thief steals 2 catnips!','event');
+        addLog('Pickpocket steals 2 catnips!','event');
     }
 
     // Track grudges for crows
     if(def.faction==='crow'&&atk.faction!=='crow'){g.grudges.crow=atk.faction}
-    if(atk.faction==='crow'&&def.faction!=='crow'&&def.hp<=0){/* crow satisfied for now */}
 
-    // Track provocation during peace period — attacked factions can retaliate
+    // Track provocation during peace period
     const peaceTurns=PEACE_TURNS[difficulty]||0;
     if(g.turn<=peaceTurns){g.provoked[def.faction]=atk.faction}
 
@@ -517,16 +1009,15 @@ function checkCap(unit){
             G.capturedCaps++;G.flags.firstCapCaptured=true;
             if(G.capturedCaps>=5)endGame('kitty');
         }
-        // AI captures AI capital — faction loses but game continues
         if(unit.faction!=='kitty'&&prev!=='kitty'){
             addLog(`${F[unit.faction].name} has conquered ${F[prev].name}!`,'event');
         }
-        if(prev==='kitty')endGame(prev); // kitty capital captured = loss
+        if(prev==='kitty')endGame(prev);
     }
 }
 
 // ================================================================
-// AI SYSTEM — Multi-faction with personality
+// AI SYSTEM (updated unit type references)
 // ================================================================
 function runFactionAI(fac){
     const g=G;
@@ -534,18 +1025,16 @@ function runFactionAI(fac){
     const my=Object.values(g.units).filter(u=>u.faction===fac);
     my.forEach(u=>{u.moveLeft=u.maxMv||u.mv;u.hasAttacked=false});
 
-    // Peace period check — during peace, only train units and defend if provoked
     const peaceTurns=PEACE_TURNS[difficulty]||0;
     const inPeace=g.turn<=peaceTurns;
-    const provokedBy=g.provoked[fac]||null; // faction that attacked us during peace
+    const provokedBy=g.provoked[fac]||null;
 
-    // Determine priority target based on AI style
     const target=inPeace?(provokedBy||null):pickTarget(fac);
 
-    // Apply marshaller buffs for meerkats
+    // Apply phalanx buffs for meerkats
     if(fac==='meerkat'){
         my.forEach(u=>{u._marshBuff=0});
-        my.filter(u=>u.type==='marshaller').forEach(m=>{
+        my.filter(u=>u.type==='phalanx').forEach(m=>{
             hN(m.q,m.r).forEach(n=>{
                 const a=my.find(u=>u.q===n.q&&u.r===n.r&&u.id!==m.id);
                 if(a)a._marshBuff=1;
@@ -553,7 +1042,6 @@ function runFactionAI(fac){
         });
     }
 
-    // Get faction capital for defensive behavior
     const cap=Object.values(g.tiles).find(t=>t.isCapital&&t.owner===fac);
     const capPos=cap?{q:cap.q,r:cap.r}:CAPITALS[fac];
 
@@ -562,11 +1050,9 @@ function runFactionAI(fac){
     my.forEach(unit=>{
         if(!g.units[unit.id])return;
 
-        // 1. Attack adjacent enemies (during peace, only retaliate against provoker)
         let targets=getAtk(unit);
         if(inPeace)targets=targets.filter(t=>t.faction===provokedBy);
         if(targets.length){
-            // Prioritize the target faction, then weakest
             targets.sort((a,b)=>{
                 const aT=a.faction===target?-10:0;
                 const bT=b.faction===target?-10:0;
@@ -576,7 +1062,6 @@ function runFactionAI(fac){
             if(!g.units[unit.id])return;
         }
 
-        // 2. Move
         if(unit.moveLeft>0){
             const reach=getReach(unit);
             let bestK=null,bestS=-Infinity;
@@ -588,9 +1073,7 @@ function runFactionAI(fac){
                 const dHome=hD(data,capPos);
 
                 if(inPeace){
-                    // PEACE PERIOD: stay in own territory, don't cross borders
                     if(dHome<=4)s+=15;else if(dHome<=6)s+=5;else s-=dHome*3;
-                    // Only move toward provoker's units near home
                     if(provokedBy){
                         enemies.filter(e=>e.faction===provokedBy).forEach(e=>{
                             if(!g.units[e.id])return;
@@ -599,24 +1082,18 @@ function runFactionAI(fac){
                             if(eDH<=5){if(d<=unit.rng)s+=20;else s+=Math.max(0,10-d)}
                         });
                     }
-                    // Claim nearby unclaimed villages only
                     if(tile&&tile.isCity&&!tile.owner&&dHome<=4)s+=8;
-                    // Never move toward enemy-owned tiles during peace
                     if(tile&&tile.owner&&tile.owner!==fac)s-=20;
                 } else if(aiMode==='defensive'||F[fac].aiStyle==='territorial'){
-                    // Stay near home, defend, expand slowly
                     if(dHome<=5)s+=10;else if(dHome<=7)s+=3;else s-=dHome*1.5;
-                    // Intercept enemies near home
                     enemies.forEach(e=>{
                         if(!g.units[e.id])return;
                         const eDH=hD({q:e.q,r:e.r},capPos);
                         const d=hD(data,{q:e.q,r:e.r});
                         if(eDH<=6){if(d<=unit.rng)s+=20;else s+=Math.max(0,12-d)}
                     });
-                    // Expand to nearby neutral villages
                     if(tile&&tile.isCity&&!tile.owner&&dHome<=6)s+=10;
                 } else {
-                    // Aggressive mode
                     enemies.forEach(e=>{
                         if(!g.units[e.id])return;
                         const d=hD(data,{q:e.q,r:e.r});
@@ -631,14 +1108,13 @@ function runFactionAI(fac){
                 }
 
                 // Faction-specific movement preferences
-                if(unit.type==='skulker'&&tile&&tile.terrain.id==='forest')s+=5;
+                if(unit.type==='slinker'&&tile&&tile.terrain.id==='forest')s+=5;
                 if(tile)s+=tile.terrain.def;
                 if(s>bestS){bestS=s;bestK=key}
             });
             if(bestK){const d=reach[bestK];unit.q=d.q;unit.r=d.r;unit.moveLeft=0;checkCap(unit)}
         }
 
-        // 3. Attack after moving (during peace, only retaliate against provoker)
         if(!unit.hasAttacked&&g.units[unit.id]){
             targets=getAtk(unit);
             if(inPeace)targets=targets.filter(t=>t.faction===provokedBy);
@@ -662,9 +1138,9 @@ function runFactionAI(fac){
     myCities.forEach(city=>{
         if(unitAt(city.q,city.r))return;
         const types=Object.keys(F[fac].units);
-        // Meerkats spam grunts
         let pick;
-        if(fac==='meerkat'){pick=Math.random()<.6?'grunt':types[Math.floor(Math.random()*types.length)]}
+        // Meerkats spam sentries
+        if(fac==='meerkat'){pick=Math.random()<.6?'sentry':types[Math.floor(Math.random()*types.length)]}
         else{pick=types[Math.floor(Math.random()*types.length)]}
         const cost=F[fac].units[pick].cost;
         if((g.res[fac]||0)>=cost)trainUnit(fac,pick,city.q,city.r);
@@ -675,16 +1151,13 @@ function pickTarget(fac){
     const g=G;
     const style=F[fac].aiStyle||'opportunist';
     const aiFacs=['kitty','ferret','meerkat','possum','crow','hyena'].filter(f=>f!==fac);
-    // Filter to factions that still have units or cities
     const alive=aiFacs.filter(f=>Object.values(g.units).some(u=>u.faction===f)||Object.values(g.tiles).some(t=>t.isCity&&t.owner===f));
     if(!alive.length)return'kitty';
 
     if(style==='opportunist'){
-        // Target whoever has most resources (ferrets want to steal)
         return alive.reduce((best,f)=>((g.res[f]||0)>(g.res[best]||0)?f:best),alive[0]);
     }
     if(style==='territorial'){
-        // Meerkats: attack nearest faction by border proximity
         const myCap=CAPITALS[fac];
         return alive.reduce((best,f)=>{
             const cap=CAPITALS[f];
@@ -692,7 +1165,6 @@ function pickTarget(fac){
         },alive[0]);
     }
     if(style==='scavenger'){
-        // Possums: attack weakest (fewest units)
         return alive.reduce((best,f)=>{
             const fc=Object.values(g.units).filter(u=>u.faction===f).length;
             const bc=Object.values(g.units).filter(u=>u.faction===best).length;
@@ -700,13 +1172,11 @@ function pickTarget(fac){
         },alive[0]);
     }
     if(style==='grudge'){
-        // Crows: attack whoever hit them last, default to nearest
         if(g.grudges.crow&&alive.includes(g.grudges.crow))return g.grudges.crow;
         const myCap=CAPITALS[fac];
         return alive.reduce((best,f)=>hD(myCap,CAPITALS[f])<hD(myCap,CAPITALS[best])?f:best,alive[0]);
     }
     if(style==='dominant'){
-        // Hyenas: attack strongest (most units)
         return alive.reduce((best,f)=>{
             const fc=Object.values(g.units).filter(u=>u.faction===f).length;
             const bc=Object.values(g.units).filter(u=>u.faction===best).length;
@@ -775,7 +1245,6 @@ const AI_FACS=['ferret','meerkat','possum','crow','hyena'];
 function startPlayerTurn(){
     G.currentFaction='kitty';collectIncome('kitty');
     eachUnit(G,'kitty',u=>{u.moveLeft=u.maxMv||u.mv;u.hasAttacked=false});
-    // Announce when peace period ends
     const peaceTurns=PEACE_TURNS[difficulty]||0;
     if(G.turn===peaceTurns+1&&peaceTurns>0)addLog('The peace period has ended. The factions are on the move.','event');
     applyHeroAuras();updateVision();checkStory();updateUI();render();
@@ -789,14 +1258,12 @@ function endTurn(){
     let i=0;
     function nextAI(){
         if(i>=AI_FACS.length||G.gameOver){
-            // Check if player lost
             const ku=Object.values(G.units).filter(u=>u.faction==='kitty');
             const kCap=Object.values(G.tiles).find(t=>t.isCapital&&t.owner==='kitty');
             if(ku.length===0||!kCap){endGame('defeat');return}
             G.turn++;startPlayerTurn();return;
         }
         const fac=AI_FACS[i];i++;
-        // Only run AI if faction has units or cities
         const hasPresence=Object.values(G.units).some(u=>u.faction===fac)||Object.values(G.tiles).some(t=>t.isCity&&t.owner===fac);
         if(hasPresence)runFactionAI(fac);
         setTimeout(nextAI,80);
@@ -834,13 +1301,13 @@ function showModal(){if(!mq.length)return;const e=mq.shift();document.getElement
 function closeModal(){document.getElementById('mo').style.display='none';if(mq.length)setTimeout(showModal,200)}
 
 // ================================================================
-// RENDERING
+// RENDERING — Updated with sprite drawing and warm terrain palette
 // ================================================================
 function render(){
     if(!G)return;
     const cw=C.parentElement.clientWidth,ch=C.parentElement.clientHeight;
     C.width=cw;C.height=ch;
-    X.fillStyle='#0d1117';X.fillRect(0,0,cw,ch);
+    X.fillStyle='#1a1330';X.fillRect(0,0,cw,ch);
     X.save();X.translate(cw/2+cam.x,ch/2+cam.y);X.scale(cam.z,cam.z);
 
     const mvS=new Set(mvHL.map(h=>hK(h.q,h.r))),atS=new Set(atHL.map(h=>hK(h.q,h.r)));
@@ -851,7 +1318,7 @@ function render(){
         let col=tile.terrain.c;
         if(tile.owner)col=blend(col,F[tile.owner].col,.15);
         if(!tile.visible)col=blend(col,'#0a0b10',.55);
-        dHex(p.x,p.y,HEX-1,col,'#111520',1);
+        dHex(p.x,p.y,HEX-1,col,'#2a2535',1);
 
         // Territory borders
         if(tile.owner&&tile.visible){
@@ -874,16 +1341,33 @@ function render(){
         if(hov&&tile.q===hov.q&&tile.r===hov.r)dHex(p.x,p.y,HEX,'','rgba(255,255,255,.3)',1.5);
 
         X.textAlign='center';X.textBaseline='middle';
-        if(tile.terrain.id==='mountain'){X.fillStyle='#888';X.font='12px Arial';X.fillText('▲',p.x,p.y)}
-        if(tile.terrain.id==='forest'){X.fillStyle='#1a4a0f';X.font='10px Arial';X.fillText('♠',p.x-3,p.y);X.fillText('♠',p.x+3,p.y+2)}
-        if(tile.terrain.id==='water'){X.fillStyle='#2a6a9b';X.font='8px Arial';X.fillText('〰',p.x,p.y+1)}
+        // Terrain decorations with updated palette
+        if(tile.terrain.id==='mountain'){
+            X.fillStyle='#8a7f71';
+            X.beginPath();X.moveTo(p.x-6,p.y+6);X.lineTo(p.x,p.y-6);X.lineTo(p.x+6,p.y+6);X.closePath();X.fill();
+            X.fillStyle='#f2eadb';
+            X.beginPath();X.moveTo(p.x-2,p.y-2);X.lineTo(p.x,p.y-6);X.lineTo(p.x+2,p.y-2);X.closePath();X.fill();
+        }
+        if(tile.terrain.id==='forest'){
+            X.fillStyle='#4e6b49';
+            X.beginPath();X.arc(p.x-4,p.y-1,3,0,Math.PI*2);X.fill();
+            X.beginPath();X.arc(p.x+3,p.y+2,3,0,Math.PI*2);X.fill();
+            X.fillStyle='#2d4a30';
+            X.fillRect(p.x-4.5,p.y+2,1.5,3);
+            X.fillRect(p.x+2.5,p.y+5,1.5,3);
+        }
+        if(tile.terrain.id==='water'){
+            X.strokeStyle='#8fb8d4';X.lineWidth=1;
+            X.beginPath();X.moveTo(p.x-8,p.y-2);X.quadraticCurveTo(p.x-4,p.y-5,p.x,p.y-2);X.stroke();
+            X.beginPath();X.moveTo(p.x,p.y+2);X.quadraticCurveTo(p.x+4,p.y-1,p.x+8,p.y+2);X.stroke();
+        }
 
         if(tile.isCity){
             const oc=tile.owner?F[tile.owner].col:'#aaa';
             X.fillStyle=tile.isCapital?'#ffd700':oc;
             X.font=tile.isCapital?'bold 12px Arial':'10px Arial';
             X.fillText(tile.isCapital?'★':'●',p.x,p.y-HEX*.38);
-            X.fillStyle='#bbb';X.font='6px Arial';
+            X.fillStyle='#887';X.font='6px Arial';
             const lvl=(tile.cityLevel||0);
             X.fillText((tile.cityName||'')+(lvl>0?` (${lvl})`:''),p.x,p.y+HEX*.58);
         }
@@ -891,22 +1375,40 @@ function render(){
         if(imp){X.fillStyle='#ddd';X.font='9px Arial';X.fillText(IMP[imp].icon,p.x+HEX*.3,p.y+HEX*.3)}
     });
 
-    // Units
+    // Units — draw sprites where available, fallback to emoji
     Object.values(G.units).forEach(unit=>{
         const tile=G.tiles[hK(unit.q,unit.r)];
         if(!tile||(!tile.visible&&unit.faction!=='kitty'))return;
         const p=h2p(unit.q,unit.r),fac=F[unit.faction],sz=unit.isHero?13:10;
-        X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);
-        X.fillStyle=unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fac.dk):fac.dk;
-        X.fill();X.strokeStyle=fac.col;X.lineWidth=unit.isHero?2.5:1.5;X.stroke();
-        X.fillStyle='#fff';X.font=`${unit.isHero?13:11}px Arial`;X.textAlign='center';X.textBaseline='middle';
-        X.fillText(unit.icon,p.x,p.y);
+
+        // Selection ring (behind sprite)
+        if(selU&&unit.id===selU.id){X.beginPath();X.arc(p.x,p.y,sz+3,0,Math.PI*2);X.strokeStyle='#fff';X.lineWidth=2;X.stroke()}
+
+        // Try to draw sprite
+        let spriteKey=unit.isHero?'hero.'+unit.heroId:unit.faction+'.'+unit.type;
+        const sprite=SPRITES[spriteKey];
+        if(sprite&&spritesReady){
+            const drawSz=unit.isHero?26:22;
+            X.drawImage(sprite,p.x-drawSz/2,p.y-drawSz/2-2,drawSz,drawSz);
+        } else {
+            // Fallback: circle + emoji
+            X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);
+            X.fillStyle=unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fac.dk):fac.dk;
+            X.fill();X.strokeStyle=fac.col;X.lineWidth=unit.isHero?2.5:1.5;X.stroke();
+            X.fillStyle='#fff';X.font=`${unit.isHero?13:11}px Arial`;X.textAlign='center';X.textBaseline='middle';
+            X.fillText(unit.icon,p.x,p.y);
+        }
+
+        // HP bar
         const pct=unit.hp/unit.maxHp,bw=sz*1.3,bx=p.x-bw/2,by=p.y+sz+2;
         X.fillStyle='#222';X.fillRect(bx,by,bw,2);
         X.fillStyle=pct>.5?'#0e6':pct>.25?'#fa0':'#f14';X.fillRect(bx,by,bw*pct,2);
-        if(unit.level>1){X.fillStyle='#ffeb3b';X.font='bold 6px Arial';X.fillText('★'+unit.level,p.x+sz,p.y-sz+2)}
+
+        // Level star
+        if(unit.level>1){X.fillStyle='#ffeb3b';X.font='bold 6px Arial';X.textAlign='center';X.textBaseline='middle';X.fillText('★'+unit.level,p.x+sz,p.y-sz+2)}
+
+        // Exhausted overlay
         if(unit.moveLeft<=0&&unit.hasAttacked&&unit.faction==='kitty'){X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);X.fillStyle='rgba(0,0,0,.35)';X.fill()}
-        if(selU&&unit.id===selU.id){X.beginPath();X.arc(p.x,p.y,sz+3,0,Math.PI*2);X.strokeStyle='#fff';X.lineWidth=2;X.stroke()}
     });
     X.restore();renderMM();
 }
@@ -919,7 +1421,7 @@ function blend(h1,h2,r){const c1=hRGB(h1),c2=hRGB(h2);return`rgb(${Math.round(c1
 function hRGB(h){if(h.startsWith('rgb')){const m=h.match(/(\d+)/g);return{r:+m[0],g:+m[1],b:+m[2]}}h=h.replace('#','');return{r:parseInt(h.substr(0,2),16),g:parseInt(h.substr(2,2),16),b:parseInt(h.substr(4,2),16)}}
 
 function renderMM(){
-    mmC.width=160;mmC.height=140;mmX.fillStyle='#0d1117';mmX.fillRect(0,0,160,140);
+    mmC.width=160;mmC.height=140;mmX.fillStyle='#1a1330';mmX.fillRect(0,0,160,140);
     const sc=2.8,ox=80,oy=70;
     Object.values(G.tiles).forEach(t=>{
         if(!t.explored)return;
@@ -981,14 +1483,12 @@ function updateSel(){
         h+=`<div class="sr"><span class="l">Kills</span><span class="v">${unit.kills}</span></div></div>`;
     }
 
-    // City upgrade
     if(tile.isCity&&tile.owner==='kitty'&&tile.visible){
         const lvl=tile.cityLevel||0,cost=6+lvl*4;
         h+=`<div style="margin-top:4px;border-top:1px solid #2a2a3e;padding-top:4px">`;
         h+=`<button class="ba bf" style="font-size:10px;padding:4px" ${G.res.kitty>=cost?'':'disabled'} onclick="upgradeCity(${sel.q},${sel.r});updateUI();render()">⬆ Upgrade — ${cost} catnips<div style="font-size:9px;color:#889">+1 def, +1 income. Lvl ${lvl}</div></button></div>`;
     }
 
-    // Improvements
     if(tile.owner==='kitty'&&!tile.isCity&&!imp&&tile.terrain.mc>0&&tile.visible){
         h+=`<div style="margin-top:4px;border-top:1px solid #2a2a3e;padding-top:4px"><div style="font-size:10px;color:#667;margin-bottom:2px">Build:</div>`;
         Object.entries(IMP).forEach(([t,d])=>{
@@ -1099,9 +1599,9 @@ function handleClick(hex){
 }
 
 // ================================================================
-// START
+// START — preloads sprites before first render
 // ================================================================
-function startGame(){
+async function startGame(){
     document.getElementById('ts').style.display='none';
     document.getElementById('top-bar').style.display='flex';
     document.getElementById('main-area').style.display='flex';
@@ -1111,7 +1611,9 @@ function startGame(){
     addLog('Campaign begins. Capture all 5 rival capitals.','story');
     addLog('Spend catnips to train, research, and upgrade.','story');
     setupInput();
-    cam.x=0;cam.y=0; // Kitty City is at center
+    cam.x=0;cam.y=0;
+    // Preload sprites then start
+    await preloadSprites();
     startPlayerTurn();
     window.addEventListener('resize',render);
 }
