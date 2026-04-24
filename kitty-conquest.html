@@ -1157,14 +1157,13 @@ function createGame(){
             mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,moveLeft:tmpl.mv,hasAttacked:false,
             icon:tmpl.ic,name:heroId?tmpl.name:tmpl.n,isHero:!!heroId,heroId:heroId||null,xp:0,level:1,kills:0,fakerUsed:false};
     };
-    mk('kitty','fiter',0,0,'hitty');mk('kitty','fiter',0,-1,'gritty');mk('kitty','fiter',-1,1,'witty');
-    mk('kitty','fiter',1,0,'pritty');mk('kitty','fiter',-1,0,'skitty');mk('kitty','fiter',1,-1,'shitty');
-    mk('kitty','fiter',0,1,null);mk('kitty','bloker',-1,2,null);
-    mk('ferret','pickpocket',8,-4);mk('ferret','raider',8,-5);mk('ferret','slinker',7,-3);mk('ferret','raider',9,-5);
-    mk('meerkat','sentry',3,7);mk('meerkat','sentry',3,6);mk('meerkat','sentry',4,6);mk('meerkat','sentry',2,7);mk('meerkat','phalanx',4,7);
-    mk('possum','scavenger',-6,8);mk('possum','playdead',-6,7);mk('possum','trickster',-5,7);
-    mk('crow','messenger',-8,2);mk('crow','messenger',-7,2);mk('crow','divestriker',-8,3);mk('crow','tooluser',-7,1);
-    mk('hyena','brute',-2,-8);mk('hyena','brute',-3,-7);mk('hyena','howler',-1,-8);
+    // Player starts with no units — train your first from Kitty City
+    // AI factions start with 1 unit each at their capital (they train more over time)
+    mk('ferret','pickpocket',8,-4);
+    mk('meerkat','sentry',3,7);
+    mk('possum','scavenger',-6,8);
+    mk('crow','messenger',-8,2);
+    mk('hyena','brute',-2,-8);
     const aiFacs=['ferret','meerkat','possum','crow','hyena'];const res={};aiFacs.forEach(f=>res[f]=10);res.kitty=12;
     return{tiles,units,turn:1,currentFaction:'kitty',res,nextUid:uid,log:[],gameOver:false,
         forgeLevel:0,fb:{mAtk:0,aDef:0,regen:0},unlocked:{fiter:true,bloker:true,shoter:false,crusher:false},
@@ -1458,7 +1457,7 @@ function runFactionAI(fac){
                             if(eDH<=5){if(d<=unit.rng)s+=20;else s+=Math.max(0,10-d)}
                         });
                     }
-                    if(tile&&tile.isCity&&!tile.owner&&dHome<=4)s+=8;
+                    if(tile&&tile.isCity&&!tile.owner&&dHome<=5)s+=15;
                     if(tile&&tile.owner&&tile.owner!==fac)s-=20;
                 } else if(aiMode==='defensive'||F[fac].aiStyle==='territorial'){
                     if(dHome<=5)s+=10;else if(dHome<=7)s+=3;else s-=dHome*1.5;
@@ -1468,7 +1467,7 @@ function runFactionAI(fac){
                         const d=hD(data,{q:e.q,r:e.r});
                         if(eDH<=6){if(d<=unit.rng)s+=20;else s+=Math.max(0,12-d)}
                     });
-                    if(tile&&tile.isCity&&!tile.owner&&dHome<=6)s+=10;
+                    if(tile&&tile.isCity&&!tile.owner&&dHome<=6)s+=15;
                 } else {
                     enemies.forEach(e=>{
                         if(!g.units[e.id])return;
@@ -1478,7 +1477,7 @@ function runFactionAI(fac){
                         else s+=Math.max(0,(isTarget?14:8)-d);
                     });
                     if(tile&&tile.isCity&&tile.owner!==fac){
-                        s+=10;
+                        s+=tile.owner?10:18;
                         if(tile.isCapital&&tile.owner===target)s+=30;
                     }
                 }
@@ -1994,7 +1993,8 @@ function updateForgeP(){
 function updateHeroP(){
     const p=document.getElementById('herp');
     const heroes=Object.values(G.units).filter(u=>u.isHero&&u.faction==='kitty');
-    if(!heroes.length&&!Object.keys(HEROES).some(h=>!Object.values(G.units).find(u=>u.heroId===h))){p.style.display='none';return}
+    // Only show hero panel if at least one hero has been summoned (alive or dead)
+    if(!heroes.length&&!G.flags.heroEverSummoned){p.style.display='none';return}
     p.style.display='block';let h='<h3>Heroes</h3>';
     Object.keys(HEROES).forEach(hid=>{
         const unit=Object.values(G.units).find(u=>u.heroId===hid);
@@ -2002,7 +2002,7 @@ function updateHeroP(){
         if(unit){
             const expr=getHeroExpression(unit);
             h+='<div style="font-size:10px;margin:2px 0;cursor:pointer;color:'+hero.color+'" onclick="centerOn('+unit.q+','+unit.r+')">'+portraitImg(hid,expr,24)+' '+hero.name+' '+unit.hp+'/'+unit.maxHp+(unit.level>1?' \u2605'+unit.level:'')+'</div>';
-        } else h+='<div style="font-size:10px;margin:2px 0;color:#8a7a6a;text-decoration:line-through">'+portraitImg(hid,'ko',24)+' '+hero.name+' \u2014 fallen</div>';
+        } else if(G.flags['summoned_'+hid]) h+='<div style="font-size:10px;margin:2px 0;color:#8a7a6a;text-decoration:line-through">'+portraitImg(hid,'ko',24)+' '+hero.name+' \u2014 fallen</div>';
     });
     p.innerHTML=h;
 }
@@ -2095,8 +2095,8 @@ async function startGame(){
     C=document.getElementById('gc');X=C.getContext('2d');
     mmC=document.getElementById('mm');mmX=mmC.getContext('2d');
     G=createGame();
-    addLog('Campaign begins. Capture all 5 rival capitals.','story');
-    addLog('Spend catnips to train, research, and upgrade.','story');
+    addLog('Kitty City stands alone. Train your first unit to begin.','story');
+    addLog('Occupy nearby villages to grow your income. Capture all 5 rival capitals to win.','story');
     setupInput();
     cam.x=0;cam.y=0;
     await preloadSprites();
