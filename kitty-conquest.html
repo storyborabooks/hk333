@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hitty Kitty: Kitty Conquest</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; }
+body { background:#1a1a2e; font-family:'Segoe UI',Arial,sans-serif; color:#ddd; overflow:hidden; height:100vh; }
+#top-bar { width:100%; height:42px; background:#16213e; border-bottom:2px solid #e94560; display:none; align-items:center; justify-content:space-between; padding:0 12px; z-index:10; flex-wrap:wrap; }
+.tb-s { display:flex; align-items:center; gap:10px; }
+.tb-t { font-size:16px; font-weight:bold; color:#ff69b4; }
+.tb-i { font-size:13px; color:#aab; }
+.tb-r { font-size:13px; color:#ffab00; font-weight:bold; }
+.tb-b { padding:3px 10px; font-size:11px; font-weight:bold; border:1px solid #e94560; background:transparent; color:#e94560; border-radius:3px; cursor:pointer; white-space:nowrap; }
+.tb-b:hover { background:#e94560; color:#fff; }
+#main-area { display:none; width:100%; height:calc(100vh - 42px); position:relative; }
+#canvas-wrap { position:absolute; top:0; left:0; right:240px; bottom:0; }
+canvas#gc { display:block; cursor:pointer; }
+#sp { position:absolute; top:0; right:0; width:240px; height:100%; background:#16213e; border-left:1px solid #333; display:flex; flex-direction:column; overflow:hidden; }
+#ps { flex:1; overflow-y:auto; padding:6px; display:flex; flex-direction:column; gap:6px; }
+.pb { background:#1a1a2e; border:1px solid #2a2a3e; border-radius:4px; padding:6px; }
+.pb h3 { font-size:10px; color:#ff69b4; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+.sr { display:flex; justify-content:space-between; font-size:11px; margin:1px 0; }
+.sr .l { color:#667; } .sr .v { color:#ddd; font-weight:bold; }
+.ba { display:block; width:100%; padding:6px; margin:2px 0; border:1px solid #e94560; background:#1a1a2e; color:#e94560; font-size:11px; font-weight:bold; border-radius:3px; cursor:pointer; text-align:center; }
+.ba:hover { background:#e94560; color:#fff; } .ba:disabled { opacity:.3; cursor:default; background:#1a1a2e; }
+.bt { border-color:#ffab00; color:#ffab00; } .bt:hover { background:#ffab00; color:#1a1a2e; }
+.bf { border-color:#7c4dff; color:#7c4dff; } .bf:hover { background:#7c4dff; color:#fff; }
+.le { font-size:10px; color:#556; border-bottom:1px solid #1a1a2e; padding:2px 0; }
+.le.combat { color:#e94560; } .le.event { color:#ffab00; } .le.story { color:#ff69b4; }
+#bb { padding:5px 6px; border-top:1px solid #333; background:#16213e; }
+canvas#mm { position:absolute; bottom:8px; left:8px; width:160px; height:140px; background:rgba(22,33,62,.9); border:1px solid #333; border-radius:3px; z-index:5; }
+#ts { position:fixed; inset:0; background:#1a1a2e; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; }
+#ts h1 { font-size:52px; color:#ff69b4; text-shadow:0 0 20px rgba(255,105,180,.4); }
+#ts .sub { font-size:18px; color:#aab; font-style:italic; margin:4px 0 24px; }
+.sb { padding:12px 40px; font-size:17px; font-weight:bold; border:2px solid #ff69b4; background:transparent; color:#ff69b4; border-radius:6px; cursor:pointer; }
+.sb:hover { background:#ff69b4; color:#1a1a2e; }
+.fl { font-size:12px; color:#556; margin-top:16px; max-width:500px; text-align:center; line-height:1.5; }
+#mo { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:200; }
+#md { background:#16213e; border:2px solid #ff69b4; border-radius:8px; padding:20px; max-width:480px; width:90%; text-align:center; }
+#md h2 { color:#ff69b4; font-size:20px; margin-bottom:8px; }
+#md .sp { color:#ffab00; font-size:13px; font-weight:bold; margin-bottom:3px; }
+#md .dl { color:#ccd; font-size:14px; line-height:1.5; margin-bottom:14px; font-style:italic; }
+#md .mb { padding:7px 24px; border:1px solid #ff69b4; background:transparent; color:#ff69b4; border-radius:4px; cursor:pointer; font-size:13px; }
+#md .mb:hover { background:#ff69b4; color:#1a1a2e; }
+#ov { position:fixed; inset:0; background:rgba(0,0,0,.75); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:300; }
+#ov h1 { font-size:44px; margin-bottom:10px; }
+#ov .ms { font-size:15px; color:#aab; max-width:480px; text-align:center; line-height:1.5; margin-bottom:18px; }
+#ov .rb { padding:10px 32px; font-size:15px; border:2px solid #ff69b4; background:transparent; color:#ff69b4; border-radius:6px; cursor:pointer; }
+#ov .rb:hover { background:#ff69b4; color:#1a1a2e; }
+</style>
+</head>
+<body>
+<div id="ts">
+    <h1>KITTY CONQUEST</h1>
+    <div class="sub">A Hitty Kitty Strategy Game</div>
+    <div style="color:#7c4dff;font-size:15px;margin-bottom:10px;">Campaign: The Anvil &amp; The Scepter</div>
+    <button class="sb" onclick="startGame()">START CAMPAIGN</button>
+    <div class="fl">The ferrets stole Smitty Kitty's Anvil. But they're not the only threat. Five rival factions surround Kitty City, each with their own agenda. Conquer all five capitals to secure the region.</div>
+</div>
+<div id="ov"><h1 id="ovt"></h1><div class="ms" id="ovm"></div><button class="rb" onclick="location.reload()">PLAY AGAIN</button></div>
+<div id="mo" onclick="closeModal()"><div id="md" onclick="event.stopPropagation()"><h2 id="mt"></h2><div class="sp" id="ms"></div><div class="dl" id="mdl"></div><button class="mb" onclick="closeModal()">Continue</button></div></div>
+<div id="top-bar">
+    <div class="tb-s">
+        <span class="tb-t">KITTY CONQUEST</span>
+        <span class="tb-i">Turn <span id="tn">1</span></span>
+        <span class="tb-i" id="tp">Your Turn</span>
+    </div>
+    <div class="tb-s">
+        <span class="tb-r">Catnips: <span id="ac">0</span></span>
+        <span class="tb-i" id="cc">Cities: 1</span>
+        <span class="tb-i" id="capcount">Capitals: 0/5</span>
+        <button class="tb-b" onclick="toggleForge()">Forge</button>
+        <button class="tb-b" id="fogb" onclick="toggleFog()">Fog: ON</button>
+        <button class="tb-b" id="aib" onclick="toggleAI()">AI: Defensive</button>
+        <button class="tb-b" id="difb" onclick="toggleDifficulty()">Difficulty: Normal</button>
+        <button class="tb-b" onclick="endTurn()">End Turn</button>
+    </div>
+</div>
+<div id="main-area">
+    <div id="canvas-wrap"><canvas id="gc"></canvas></div>
+    <canvas id="mm"></canvas>
+    <div id="sp">
+        <div id="ps">
+            <div class="pb" id="selp"><h3>Selection</h3><p style="font-size:11px;color:#667;">Click a hex to inspect</p></div>
+            <div class="pb" id="actp" style="display:none"><h3>Actions</h3></div>
+            <div class="pb" id="trnp" style="display:none"><h3>Train Unit</h3></div>
+            <div class="pb" id="frgp" style="display:none"><h3>Smitty's Forge</h3></div>
+            <div class="pb" id="herp" style="display:none"><h3>Heroes</h3></div>
+            <div class="pb" id="logp"><h3>Battle Log</h3><div id="loge"></div></div>
+        </div>
+        <div id="bb"><button class="ba" onclick="endTurn()">END TURN</button></div>
+    </div>
+</div>
+
+<script>
+// ================================================================
+// KITTY CONQUEST v3 — Full 6-Faction Strategy Game
+// ================================================================
+const HEX=28, MAP_R=10, S3=Math.sqrt(3);
+
+const T={
+    PLAINS:  {id:'plains',  c:'#4a7c59',name:'Plains',  mc:1,def:0},
+    FOREST:  {id:'forest',  c:'#2d5a1e',name:'Forest',  mc:2,def:1},
+    MOUNTAIN:{id:'mountain',c:'#6b6b7b',name:'Mountain',mc:3,def:2},
+    WATER:   {id:'water',   c:'#1a4a6b',name:'Water',   mc:-1,def:0},
+    CITY:    {id:'city',    c:'#555577',name:'City',     mc:1,def:1},
+};
+
+// ================================================================
+// FACTIONS — 6 total, each with unique units
+// ================================================================
+const F={
+    kitty:{
+        name:'Kitty City',col:'#ff69b4',dk:'#cc3377',
+        units:{
+            fiter:  {n:'Fiter',  ic:'⚔',hp:10,atk:3,def:1,mv:2,rng:1,cost:4, d:'Melee fighter'},
+            bloker: {n:'Bloker', ic:'🛡',hp:15,atk:2,def:3,mv:1,rng:1,cost:5, d:'Strong defense'},
+            shoter: {n:'Shoter', ic:'🏹',hp:7, atk:3,def:0,mv:2,rng:2,cost:5, d:'Ranged. Unlocked via Forge'},
+            crusher:{n:'Crusher',ic:'🔨',hp:12,atk:5,def:1,mv:1,rng:1,cost:8, d:'Siege. +3 vs cities. Unlocked via Forge'},
+        }
+    },
+    ferret:{
+        name:'Ferret City',col:'#7c4dff',dk:'#5533cc',
+        units:{
+            thief:   {n:'Thief',   ic:'🗡',hp:8, atk:3,def:0,mv:3,rng:1,cost:4,d:'Steals 2 catnips on kill'},
+            skulker: {n:'Skulker', ic:'👤',hp:10,atk:4,def:1,mv:2,rng:1,cost:6,d:'+3 ATK from forest'},
+            raider:  {n:'Raider',  ic:'⚡',hp:9, atk:3,def:1,mv:3,rng:1,cost:5,d:'Fast strike'},
+            snatcher:{n:'Snatcher',ic:'🎒',hp:6, atk:1,def:0,mv:4,rng:1,cost:3,d:'Steals city income'},
+        },
+        // AI: opportunistic, targets whoever has most resources
+        aiStyle:'opportunist',
+    },
+    meerkat:{
+        name:'Meerkat Burrows',col:'#ff9800',dk:'#bf6000',
+        units:{
+            grunt:     {n:'Grunt',     ic:'🐿',hp:7, atk:2,def:1,mv:2,rng:1,cost:3,d:'Cheap and plentiful'},
+            burrower:  {n:'Burrower',  ic:'⛏',hp:9, atk:3,def:2,mv:2,rng:1,cost:5,d:'Mountains cost 1 move'},
+            marshaller:{n:'Marshaller',ic:'📯',hp:8, atk:2,def:2,mv:1,rng:1,cost:6,d:'Adjacent meerkats +1 ATK/DEF'},
+        },
+        aiStyle:'territorial',
+    },
+    possum:{
+        name:'Possum Town',col:'#78909c',dk:'#4b636e',
+        units:{
+            scrapper:  {n:'Scrapper',  ic:'🐾',hp:8, atk:3,def:1,mv:2,rng:1,cost:4,d:'Basic scrapper'},
+            faker:     {n:'Faker',     ic:'💀',hp:9, atk:2,def:1,mv:2,rng:1,cost:5,d:'Survives first lethal hit at 1 HP'},
+            nightrunner:{n:'Nightrunner',ic:'🌙',hp:7,atk:4,def:0,mv:3,rng:1,cost:5,d:'+2 ATK when initiating'},
+        },
+        aiStyle:'scavenger',
+    },
+    crow:{
+        name:"Crow's Nest",col:'#607d8b',dk:'#37474f',
+        units:{
+            cawer:     {n:'Cawer',     ic:'🐦',hp:7, atk:3,def:0,mv:2,rng:2,cost:5,d:'Ranged attacker'},
+            divebomber:{n:'Divebomber',ic:'💨',hp:8, atk:5,def:0,mv:3,rng:1,cost:6,d:'High ATK, fragile'},
+            lookout:   {n:'Lookout',   ic:'👁',hp:6, atk:2,def:0,mv:2,rng:3,cost:6,d:'Long range, +3 vision'},
+        },
+        aiStyle:'grudge',
+    },
+    hyena:{
+        name:'Hyena Heights',col:'#8d6e63',dk:'#5d4037',
+        units:{
+            brawler:  {n:'Brawler',  ic:'💪',hp:12,atk:4,def:2,mv:2,rng:1,cost:5,d:'Strong all-rounder'},
+            howler:   {n:'Howler',   ic:'🔊',hp:10,atk:3,def:1,mv:2,rng:1,cost:6,d:'Adjacent enemies -1 ATK'},
+            pitfighter:{n:'Pitfighter',ic:'🩸',hp:14,atk:3,def:1,mv:1,rng:1,cost:7,d:'+ATK as HP drops'},
+        },
+        aiStyle:'dominant',
+    },
+};
+
+const HEROES={
+    hitty: {name:'Hitty Kitty', ic:'😼',hp:14,atk:5,def:2,mv:2,rng:1,ability:'Rally',abilityDesc:'Adjacent allies +1 ATK',color:'#ff69b4'},
+    gritty:{name:'Gritty Kitty',ic:'😾',hp:16,atk:4,def:3,mv:2,rng:1,ability:'Retaliate',abilityDesc:'+2 counter-attack dmg',color:'#e94560'},
+    witty: {name:'Witty Kitty', ic:'🧐',hp:9, atk:2,def:1,mv:2,rng:2,ability:'Foresight',abilityDesc:'+2 vision range',color:'#2196f3'},
+    pritty:{name:'Pritty Kitty',ic:'💅',hp:10,atk:2,def:2,mv:2,rng:1,ability:'Inspire',abilityDesc:'Adjacent allies heal 2/turn',color:'#e040fb'},
+    skitty:{name:'Skitty Kitty',ic:'😰',hp:8, atk:2,def:1,mv:3,rng:1,ability:'Panic',abilityDesc:'25% chance 2x damage',color:'#ffc107'},
+    shitty:{name:'Shitty Kitty',ic:'😒',hp:11,atk:4,def:1,mv:2,rng:1,ability:'Reckless',abilityDesc:'+2 ATK, 1 self-dmg',color:'#795548'},
+};
+
+const FORGE=[
+    {id:'sharpening',name:'Sharpening',cost:6,desc:'All melee +1 ATK',
+     effect:g=>{eachUnit(g,'kitty',u=>{if(u.rng<=1)u.atk++});g.fb.mAtk=1}},
+    {id:'plating',name:'Reinforced Plating',cost:8,desc:'All units +1 DEF',
+     effect:g=>{eachUnit(g,'kitty',u=>u.def++);g.fb.aDef=1}},
+    {id:'fletching',name:'Fletching',cost:10,desc:'Unlocks Shoter',
+     effect:g=>{g.unlocked.shoter=true}},
+    {id:'siege',name:'Siege Craft',cost:14,desc:'Unlocks Crusher (+3 vs cities)',
+     effect:g=>{g.unlocked.crusher=true}},
+    {id:'master',name:'Master Forge',cost:20,desc:'Heroes +2 ATK/DEF, all heal 1/turn',
+     effect:g=>{eachUnit(g,'kitty',u=>{if(u.isHero){u.atk+=2;u.def+=2}});g.fb.regen=1}},
+];
+
+const STORY_EVENTS=[
+    {id:'opening',turn:1,cond:g=>true,title:'The Forge Goes Cold',speaker:'Smitty Kitty',
+     text:"Without the Anvil I can't forge, can't repair, can't do anything. Every weapon you carry is the last of its kind until we get it back."},
+    {id:'first_contact',cond:g=>g.flags.firstEnemySeen&&!g.flags.shownFC,title:'Hostile Territory',speaker:'Witty Kitty',
+     text:"We're surrounded. Five factions, five agendas. The ferrets have the Anvil, but the others won't just watch us march through.",flag:'shownFC'},
+    {id:'first_village',cond:g=>g.flags.firstVillage&&!g.flags.shownFV,title:'New Territory',speaker:'Pritty Kitty',
+     text:"This village is ours now. Every one we hold makes us stronger. And prettier.",flag:'shownFV'},
+    {id:'hero_down',cond:g=>g.flags.heroKilled&&!g.flags.shownHD,title:'Fallen',speaker:'Hitty Kitty',
+     text:"We lost someone today. We don't stop — that's not what they'd want. But we remember.",flag:'shownHD'},
+    {id:'shitty_incident',turn:6,cond:g=>!g.flags.shittyDone&&Object.values(g.units).some(u=>u.heroId==='shitty'),
+     title:'Shitty Kitty Strikes Again',speaker:'Shitty Kitty',
+     text:"What? It was just sitting there. Finders keepers.",flag:'shittyDone',
+     effect:g=>{g.res.kitty=Math.max(0,g.res.kitty-5);addLog("Shitty Kitty 'found' 5 of your catnips. They're gone.",'event')}},
+    {id:'first_cap',cond:g=>g.flags.firstCapCaptured&&!g.flags.shownFCC,title:'Capital Falls',speaker:'Gritty Kitty',
+     text:"One down. They know we're serious now. The others will either back off or come harder.",flag:'shownFCC'},
+];
+
+function eachUnit(g,fac,fn){Object.values(g.units).forEach(u=>{if(u.faction===fac)fn(u)})}
+
+// ================================================================
+// GLOBALS
+// ================================================================
+let C,X,G=null;
+let cam={x:0,y:0,z:.85};
+let hov=null,sel=null,selU=null;
+let mvHL=[],atHL=[];
+let drag=false,dragS={x:0,y:0},camS={x:0,y:0};
+let mmC,mmX;
+let forgeOpen=false,fogOn=true,aiMode='defensive';
+let difficulty='normal'; // easy=15, normal=10, hard=5, crazy=0
+const PEACE_TURNS={easy:15,normal:10,hard:5,crazy:0};
+let mq=[];
+
+// ================================================================
+// HEX MATH
+// ================================================================
+const h2p=(q,r)=>({x:HEX*(S3*q+S3/2*r),y:HEX*(1.5*r)});
+const p2h=(px,py)=>{const q=(S3/3*px-1/3*py)/HEX,r=(2/3*py)/HEX,s=-q-r;let rq=Math.round(q),rr=Math.round(r),rs=Math.round(s);const dq=Math.abs(rq-q),dr=Math.abs(rr-r),ds=Math.abs(rs-s);if(dq>dr&&dq>ds)rq=-rr-rs;else if(dr>ds)rr=-rq-rs;return{q:rq,r:rr}};
+const hD=(a,b)=>(Math.abs(a.q-b.q)+Math.abs(a.q+a.r-b.q-b.r)+Math.abs(a.r-b.r))/2;
+const hK=(q,r)=>`${q},${r}`;
+const hN=(q,r)=>[{q:q+1,r},{q:q-1,r},{q,r:r+1},{q,r:r-1},{q:q+1,r:r-1},{q:q-1,r:r+1}];
+
+// ================================================================
+// MAP GENERATION — radius 10, ~331 tiles, 6 capitals
+// ================================================================
+const CAPITALS={
+    kitty:  {q:0,r:0,   name:'Kitty City'},
+    ferret: {q:8,r:-4,  name:'Ferret City'},
+    meerkat:{q:3,r:7,   name:'Meerkat Burrows'},
+    possum: {q:-6,r:8,  name:'Possum Town'},
+    crow:   {q:-8,r:2,  name:"Crow's Nest"},
+    hyena:  {q:-2,r:-8, name:'Hyena Heights'},
+};
+
+function genMap(){
+    const tiles={};
+    const seed=Math.random()*10000;
+    for(let q=-MAP_R;q<=MAP_R;q++) for(let r=-MAP_R;r<=MAP_R;r++){
+        if(Math.abs(q+r)>MAP_R||hD({q,r},{q:0,r:0})>MAP_R) continue;
+        const n1=pn(q*5.7+seed,r*7.3+seed),n2=pn(q*3.1+seed+100,r*9.2+seed+200),n3=pn(q*11.3+seed+300,r*4.8+seed+400);
+        const c=n1*.5+n2*.3+n3*.2;
+        let t=T.PLAINS;
+        if(c>.58) t=T.FOREST;
+        if(c>.78) t=T.MOUNTAIN;
+        const wn=pn(q*2.3+seed+500,r*2.7+seed+600);
+        if(wn>.88&&hD({q,r},{q:0,r:0})>2) t=T.WATER;
+        // Clear near all capitals
+        Object.values(CAPITALS).forEach(cap=>{if(hD({q,r},{q:cap.q,r:cap.r})<=2)t=T.PLAINS});
+        tiles[hK(q,r)]={q,r,terrain:t,owner:null,isCity:false,cityName:null,prod:0,isCapital:false,cityLevel:0,visible:false,explored:false};
+    }
+    // Place capitals
+    Object.entries(CAPITALS).forEach(([fac,cap])=>{
+        setCity(tiles,cap.q,cap.r,fac,cap.name,4,true);
+    });
+    // Neutral villages — scattered between factions
+    const vs=[
+        {q:4,r:-2},{q:5,r:1},{q:1,r:4},{q:-2,r:5},{q:-4,r:5},{q:-5,r:0},{q:-4,r:-3},{q:-1,r:-4},{q:2,r:-4},
+        {q:0,r:2},{q:2,r:0},{q:-2,r:0},{q:0,r:-2},{q:6,r:-6},{q:-6,r:-2},{q:3,r:-7},{q:-3,r:3},{q:6,r:3},
+    ];
+    const vn=['Whisker Village','Paw Crossing','Catnip Glen','Mousehole','Yarn Town','Scratch Post','Purr Haven',
+              'Fur Landing','Claw Creek','The Litterbox','Nap Meadow','Hiss Crossing','Tail End','Fang Hollow',
+              'Pounce Point','Meow Market','Bristle Bridge','Prowl Path'];
+    vs.forEach((s,i)=>{
+        const k=hK(s.q,s.r);
+        if(tiles[k]&&tiles[k].terrain.id!=='water'&&!tiles[k].isCity)
+            setCity(tiles,s.q,s.r,null,vn[i]||'Village',2,false);
+    });
+    return tiles;
+}
+function setCity(tiles,q,r,owner,name,prod,isCap){
+    const k=hK(q,r);if(!tiles[k])return;
+    Object.assign(tiles[k],{terrain:T.CITY,isCity:true,owner,cityName:name,prod,isCapital:isCap,cityLevel:0});
+}
+function pn(x,y){let n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n)}
+
+// ================================================================
+// GAME STATE
+// ================================================================
+function createGame(){
+    const tiles=genMap(),units={};let uid=0;
+    const mk=(fac,type,q,r,heroId)=>{
+        const tmpl=heroId?HEROES[heroId]:F[fac].units[type];
+        const id='u'+(uid++);
+        units[id]={id,faction:fac,type:heroId?'hero':type,q,r,
+            hp:tmpl.hp,maxHp:tmpl.hp,atk:tmpl.atk,def:tmpl.def,
+            mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,
+            moveLeft:tmpl.mv,hasAttacked:false,
+            icon:tmpl.ic,name:heroId?tmpl.name:tmpl.n,
+            isHero:!!heroId,heroId:heroId||null,
+            xp:0,level:1,kills:0,
+            fakerUsed:false, // for possum fakers
+        };
+    };
+    // Kitty starting units
+    mk('kitty','fiter',0,0,'hitty');mk('kitty','fiter',0,-1,'gritty');mk('kitty','fiter',-1,1,'witty');
+    mk('kitty','fiter',1,0,'pritty');mk('kitty','fiter',-1,0,'skitty');mk('kitty','fiter',1,-1,'shitty');
+    mk('kitty','fiter',0,1,null);mk('kitty','bloker',-1,2,null);
+
+    // Ferret starting units
+    mk('ferret','thief',8,-4);mk('ferret','raider',8,-5);mk('ferret','skulker',7,-3);mk('ferret','raider',9,-5);
+    // Meerkat starting units — more, cheaper
+    mk('meerkat','grunt',3,7);mk('meerkat','grunt',3,6);mk('meerkat','grunt',4,6);mk('meerkat','grunt',2,7);mk('meerkat','marshaller',4,7);
+    // Possum starting units
+    mk('possum','scrapper',-6,8);mk('possum','faker',-6,7);mk('possum','nightrunner',-5,7);
+    // Crow starting units
+    mk('crow','cawer',-8,2);mk('crow','cawer',-7,2);mk('crow','divebomber',-8,3);mk('crow','lookout',-7,1);
+    // Hyena starting units — fewer but strong
+    mk('hyena','brawler',-2,-8);mk('hyena','brawler',-3,-7);mk('hyena','howler',-1,-8);
+
+    const aiFactions=['ferret','meerkat','possum','crow','hyena'];
+    const res={};
+    aiFactions.forEach(f=>res[f]=10);
+    res.kitty=12;
+
+    return{
+        tiles,units,turn:1,currentFaction:'kitty',
+        res, // resources (catnips) per faction
+        nextUid:uid,log:[],gameOver:false,
+        forgeLevel:0,fb:{mAtk:0,aDef:0,regen:0},
+        unlocked:{fiter:true,bloker:true,shoter:false,crusher:false},
+        flags:{},firedEvents:new Set(),improvements:{},
+        grudges:{}, // crow grudge tracking: {crow: 'faction_that_last_hit_them'}
+        provoked:{}, // tracks which factions have been attacked during peace: {ferret:true, ...}
+        capturedCaps:0,
+    };
+}
+
+// ================================================================
+// FOG OF WAR
+// ================================================================
+function updateVision(){
+    if(!fogOn){Object.values(G.tiles).forEach(t=>{t.visible=true;t.explored=true});return}
+    Object.values(G.tiles).forEach(t=>t.visible=false);
+    Object.values(G.units).forEach(u=>{
+        if(u.faction!=='kitty')return;
+        let vr=2;if(u.heroId==='witty')vr=4;
+        const imp=G.improvements[hK(u.q,u.r)];if(imp==='watchtower')vr+=2;
+        Object.values(G.tiles).forEach(t=>{if(hD({q:u.q,r:u.r},{q:t.q,r:t.r})<=vr){t.visible=true;t.explored=true}});
+    });
+    Object.values(G.tiles).forEach(t=>{
+        if(t.isCity&&t.owner==='kitty'){
+            let vr=2;if(G.improvements[hK(t.q,t.r)]==='watchtower')vr=4;
+            Object.values(G.tiles).forEach(t2=>{if(hD({q:t.q,r:t.r},{q:t2.q,r:t2.r})<=vr){t2.visible=true;t2.explored=true}});
+        }
+    });
+}
+
+// ================================================================
+// HERO AURAS
+// ================================================================
+function applyHeroAuras(){
+    eachUnit(G,'kitty',u=>{u._rally=0;u._heal=0});
+    Object.values(G.units).forEach(u=>{
+        if(!u.isHero||u.faction!=='kitty')return;
+        if(u.heroId==='hitty') hN(u.q,u.r).forEach(n=>{const a=unitAt(n.q,n.r);if(a&&a.faction==='kitty'&&a.id!==u.id)a._rally=1});
+        if(u.heroId==='pritty') hN(u.q,u.r).forEach(n=>{const a=unitAt(n.q,n.r);if(a&&a.faction==='kitty'&&a.id!==u.id)a._heal=2});
+    });
+    eachUnit(G,'kitty',u=>{let h=(u._heal||0);if(G.fb.regen)h+=1;if(h>0)u.hp=Math.min(u.maxHp,u.hp+h)});
+}
+
+// ================================================================
+// IMPROVEMENTS
+// ================================================================
+const IMP={farm:{name:'Farm',cost:4,desc:'+1 income to nearest city',icon:'🌾'},workshop:{name:'Workshop',cost:6,desc:'+2 income to nearest city',icon:'🔧'},watchtower:{name:'Watchtower',cost:5,desc:'+2 vision',icon:'🗼'}};
+function buildImp(type,q,r){
+    const i=IMP[type];if(G.res.kitty<i.cost)return false;
+    G.res.kitty-=i.cost;G.improvements[hK(q,r)]=type;
+    if(type==='farm'||type==='workshop'){
+        const boost=type==='farm'?1:2;
+        let near=null,bd=999;
+        Object.values(G.tiles).forEach(t=>{if(t.isCity&&t.owner==='kitty'){const d=hD({q,r},{q:t.q,r:t.r});if(d<bd){bd=d;near=t}}});
+        if(near){near.prod+=boost;addLog(`${i.name} built. ${near.cityName} +${boost} income.`,'event')}
+    } else addLog(`${i.name} built.`,'event');
+    updateVision();return true;
+}
+
+// ================================================================
+// PATHFINDING
+// ================================================================
+function getReach(unit){
+    const reach={},vis={};
+    const q0=[{q:unit.q,r:unit.r,cost:0}];vis[hK(unit.q,unit.r)]=0;
+    while(q0.length){
+        q0.sort((a,b)=>a.cost-b.cost);const cur=q0.shift();
+        hN(cur.q,cur.r).forEach(n=>{
+            const k=hK(n.q,n.r),tile=G.tiles[k];if(!tile)return;
+            let mc=tile.terrain.mc;if(mc<0)return;
+            // Burrower: mountains cost 1
+            if(unit.type==='burrower'&&tile.terrain.id==='mountain')mc=1;
+            const blocker=unitAt(n.q,n.r);if(blocker&&blocker.faction!==unit.faction)return;
+            const nc=cur.cost+mc;
+            if(nc<=unit.moveLeft&&(vis[k]===undefined||nc<vis[k])){
+                vis[k]=nc;
+                if(!blocker||blocker.id===unit.id)reach[k]={q:n.q,r:n.r,cost:nc};
+                q0.push({q:n.q,r:n.r,cost:nc});
+            }
+        });
+    }
+    delete reach[hK(unit.q,unit.r)];return reach;
+}
+function getAtk(unit){
+    if(unit.hasAttacked)return[];
+    return Object.values(G.units).filter(o=>o.faction!==unit.faction&&hD({q:unit.q,r:unit.r},{q:o.q,r:o.r})<=unit.rng);
+}
+function unitAt(q,r){return Object.values(G.units).find(u=>u.q===q&&u.r===r)}
+
+// ================================================================
+// COMBAT
+// ================================================================
+function getCityDef(tile){
+    if(!tile)return 0;
+    if(!tile.isCity)return tile.terrain.def;
+    let d=tile.terrain.def+(tile.cityLevel||0);
+    const g=unitAt(tile.q,tile.r);
+    if(g&&g.isHero&&tile.owner===g.faction)d*=2;
+    return d;
+}
+
+function combat(atk,def){
+    const g=G,dTile=g.tiles[hK(def.q,def.r)];
+    const tDef=getCityDef(dTile);
+    let ap=atk.atk+(atk._rally||0)+(g.fb.mAtk&&atk.faction==='kitty'&&atk.rng<=1?g.fb.mAtk:0);
+    let dp=def.def+tDef+(g.fb.aDef&&def.faction==='kitty'?g.fb.aDef:0);
+
+    // Faction-specific attack bonuses
+    if(atk.type==='skulker'){const at=g.tiles[hK(atk.q,atk.r)];if(at&&at.terrain.id==='forest')ap+=3}
+    if(atk.type==='crusher'&&dTile&&dTile.isCity)ap+=3;
+    if(atk.heroId==='skitty'&&Math.random()<.25){ap*=2;addLog('Skitty panics — accidental devastation!','combat')}
+    if(atk.heroId==='shitty'){ap+=2;atk.hp-=1}
+    if(atk.type==='nightrunner')ap+=2; // nightrunner initiator bonus
+    // Pitfighter: +ATK as HP drops
+    if(atk.type==='pitfighter'){const missing=atk.maxHp-atk.hp;ap+=Math.floor(missing/3)}
+    // Howler debuff on defender
+    if(def.type!=='howler'){
+        const nearHowlers=Object.values(g.units).filter(u=>u.type==='howler'&&u.faction===atk.faction&&hD({q:u.q,r:u.r},{q:def.q,r:def.r})<=1);
+        if(nearHowlers.length)dp=Math.max(0,dp-1);
+    }
+    // Marshaller buff
+    const nearMarsh=Object.values(g.units).filter(u=>u.type==='marshaller'&&u.faction===atk.faction&&hD({q:u.q,r:u.r},{q:atk.q,r:atk.r})<=1);
+    if(nearMarsh.length&&atk.faction==='meerkat'){ap+=1;dp=Math.max(0,dp)}
+
+    let dmg=Math.max(1,Math.round(ap-dp*.4+(Math.random()*2-.5)));
+    def.hp-=dmg;
+    addLog(`${atk.name} hits ${def.name} for ${dmg}`,'combat');
+
+    // Faker: survive first lethal hit
+    if(def.hp<=0&&def.type==='faker'&&!def.fakerUsed){
+        def.hp=1;def.fakerUsed=true;
+        addLog(`${def.name} plays dead... then gets back up!`,'combat');
+    }
+
+    // Counter-attack
+    if(def.hp>0&&hD({q:atk.q,r:atk.r},{q:def.q,r:def.r})<=def.rng){
+        let cp=def.atk+(def._rally||0);
+        if(def.heroId==='gritty')cp+=2;
+        if(def.type==='pitfighter'){const m=def.maxHp-def.hp;cp+=Math.floor(m/3)}
+        const cd=Math.max(1,Math.round(cp*.5-(atk.def+(g.fb.aDef&&atk.faction==='kitty'?g.fb.aDef:0))*.3+Math.random()));
+        atk.hp-=cd;addLog(`${def.name} counters for ${cd}`,'combat');
+    }
+
+    // Thief steal
+    if(atk.type==='thief'&&def.hp<=0){
+        g.res[atk.faction]=(g.res[atk.faction]||0)+2;
+        g.res[def.faction]=Math.max(0,(g.res[def.faction]||0)-2);
+        addLog('Thief steals 2 catnips!','event');
+    }
+
+    // Track grudges for crows
+    if(def.faction==='crow'&&atk.faction!=='crow'){g.grudges.crow=atk.faction}
+    if(atk.faction==='crow'&&def.faction!=='crow'&&def.hp<=0){/* crow satisfied for now */}
+
+    // Track provocation during peace period — attacked factions can retaliate
+    const peaceTurns=PEACE_TURNS[difficulty]||0;
+    if(g.turn<=peaceTurns){g.provoked[def.faction]=atk.faction}
+
+    // Deaths
+    if(def.hp<=0){addLog(`${def.name} (${F[def.faction].name}) defeated!`,'combat');atk.xp+=3;atk.kills++;checkLvl(atk);if(def.isHero)g.flags.heroKilled=true;delete g.units[def.id]}
+    if(atk.hp<=0){addLog(`${atk.name} (${F[atk.faction].name}) defeated!`,'combat');if(atk.isHero)g.flags.heroKilled=true;delete g.units[atk.id]}
+    else{atk.xp+=1;checkLvl(atk)}
+
+    atk.hasAttacked=true;atk.moveLeft=0;
+
+    // First enemy seen
+    if(!g.flags.firstEnemySeen){
+        const ku=Object.values(g.units).filter(u=>u.faction==='kitty');
+        const eu=Object.values(g.units).filter(u=>u.faction!=='kitty');
+        for(const k of ku)for(const e of eu){if(hD({q:k.q,r:k.r},{q:e.q,r:e.r})<=3)g.flags.firstEnemySeen=true}
+    }
+}
+function checkLvl(u){const need=u.level*5;if(u.xp>=need){u.level++;u.xp-=need;u.maxHp+=2;u.hp=Math.min(u.hp+2,u.maxHp);u.atk++;if(u.level%2===0)u.def++;addLog(`${u.name} reached level ${u.level}!`,'event')}}
+
+// ================================================================
+// CITY CAPTURE
+// ================================================================
+function checkCap(unit){
+    const k=hK(unit.q,unit.r),tile=G.tiles[k];
+    if(!tile||!tile.isCity||tile.owner===unit.faction)return;
+    const prev=tile.owner;tile.owner=unit.faction;
+    addLog(`${F[unit.faction].name} captures ${tile.cityName||'Village'}!`,'event');
+    if(!prev&&unit.faction==='kitty')G.flags.firstVillage=true;
+    if(tile.isCapital&&prev&&prev!==unit.faction){
+        if(unit.faction==='kitty'){
+            G.capturedCaps++;G.flags.firstCapCaptured=true;
+            if(G.capturedCaps>=5)endGame('kitty');
+        }
+        // AI captures AI capital — faction loses but game continues
+        if(unit.faction!=='kitty'&&prev!=='kitty'){
+            addLog(`${F[unit.faction].name} has conquered ${F[prev].name}!`,'event');
+        }
+        if(prev==='kitty')endGame(prev); // kitty capital captured = loss
+    }
+}
+
+// ================================================================
+// AI SYSTEM — Multi-faction with personality
+// ================================================================
+function runFactionAI(fac){
+    const g=G;
+    collectIncome(fac);
+    const my=Object.values(g.units).filter(u=>u.faction===fac);
+    my.forEach(u=>{u.moveLeft=u.maxMv||u.mv;u.hasAttacked=false});
+
+    // Peace period check — during peace, only train units and defend if provoked
+    const peaceTurns=PEACE_TURNS[difficulty]||0;
+    const inPeace=g.turn<=peaceTurns;
+    const provokedBy=g.provoked[fac]||null; // faction that attacked us during peace
+
+    // Determine priority target based on AI style
+    const target=inPeace?(provokedBy||null):pickTarget(fac);
+
+    // Apply marshaller buffs for meerkats
+    if(fac==='meerkat'){
+        my.forEach(u=>{u._marshBuff=0});
+        my.filter(u=>u.type==='marshaller').forEach(m=>{
+            hN(m.q,m.r).forEach(n=>{
+                const a=my.find(u=>u.q===n.q&&u.r===n.r&&u.id!==m.id);
+                if(a)a._marshBuff=1;
+            });
+        });
+    }
+
+    // Get faction capital for defensive behavior
+    const cap=Object.values(g.tiles).find(t=>t.isCapital&&t.owner===fac);
+    const capPos=cap?{q:cap.q,r:cap.r}:CAPITALS[fac];
+
+    my.sort((a,b)=>getAtk(b).length-getAtk(a).length);
+
+    my.forEach(unit=>{
+        if(!g.units[unit.id])return;
+
+        // 1. Attack adjacent enemies (during peace, only retaliate against provoker)
+        let targets=getAtk(unit);
+        if(inPeace)targets=targets.filter(t=>t.faction===provokedBy);
+        if(targets.length){
+            // Prioritize the target faction, then weakest
+            targets.sort((a,b)=>{
+                const aT=a.faction===target?-10:0;
+                const bT=b.faction===target?-10:0;
+                return(aT+a.hp)-(bT+b.hp);
+            });
+            combat(unit,targets[0]);
+            if(!g.units[unit.id])return;
+        }
+
+        // 2. Move
+        if(unit.moveLeft>0){
+            const reach=getReach(unit);
+            let bestK=null,bestS=-Infinity;
+            const enemies=Object.values(g.units).filter(u=>u.faction!==fac);
+            const homeDist=hD({q:unit.q,r:unit.r},capPos);
+
+            Object.entries(reach).forEach(([key,data])=>{
+                let s=0;const tile=g.tiles[key];
+                const dHome=hD(data,capPos);
+
+                if(inPeace){
+                    // PEACE PERIOD: stay in own territory, don't cross borders
+                    if(dHome<=4)s+=15;else if(dHome<=6)s+=5;else s-=dHome*3;
+                    // Only move toward provoker's units near home
+                    if(provokedBy){
+                        enemies.filter(e=>e.faction===provokedBy).forEach(e=>{
+                            if(!g.units[e.id])return;
+                            const eDH=hD({q:e.q,r:e.r},capPos);
+                            const d=hD(data,{q:e.q,r:e.r});
+                            if(eDH<=5){if(d<=unit.rng)s+=20;else s+=Math.max(0,10-d)}
+                        });
+                    }
+                    // Claim nearby unclaimed villages only
+                    if(tile&&tile.isCity&&!tile.owner&&dHome<=4)s+=8;
+                    // Never move toward enemy-owned tiles during peace
+                    if(tile&&tile.owner&&tile.owner!==fac)s-=20;
+                } else if(aiMode==='defensive'||F[fac].aiStyle==='territorial'){
+                    // Stay near home, defend, expand slowly
+                    if(dHome<=5)s+=10;else if(dHome<=7)s+=3;else s-=dHome*1.5;
+                    // Intercept enemies near home
+                    enemies.forEach(e=>{
+                        if(!g.units[e.id])return;
+                        const eDH=hD({q:e.q,r:e.r},capPos);
+                        const d=hD(data,{q:e.q,r:e.r});
+                        if(eDH<=6){if(d<=unit.rng)s+=20;else s+=Math.max(0,12-d)}
+                    });
+                    // Expand to nearby neutral villages
+                    if(tile&&tile.isCity&&!tile.owner&&dHome<=6)s+=10;
+                } else {
+                    // Aggressive mode
+                    enemies.forEach(e=>{
+                        if(!g.units[e.id])return;
+                        const d=hD(data,{q:e.q,r:e.r});
+                        const isTarget=e.faction===target;
+                        if(d<=unit.rng)s+=isTarget?25:15;
+                        else s+=Math.max(0,(isTarget?14:8)-d);
+                    });
+                    if(tile&&tile.isCity&&tile.owner!==fac){
+                        s+=10;
+                        if(tile.isCapital&&tile.owner===target)s+=30;
+                    }
+                }
+
+                // Faction-specific movement preferences
+                if(unit.type==='skulker'&&tile&&tile.terrain.id==='forest')s+=5;
+                if(tile)s+=tile.terrain.def;
+                if(s>bestS){bestS=s;bestK=key}
+            });
+            if(bestK){const d=reach[bestK];unit.q=d.q;unit.r=d.r;unit.moveLeft=0;checkCap(unit)}
+        }
+
+        // 3. Attack after moving (during peace, only retaliate against provoker)
+        if(!unit.hasAttacked&&g.units[unit.id]){
+            targets=getAtk(unit);
+            if(inPeace)targets=targets.filter(t=>t.faction===provokedBy);
+            if(targets.length){targets.sort((a,b)=>a.hp-b.hp);combat(unit,targets[0])}
+        }
+
+        // Snatcher steal
+        if(unit.type==='snatcher'&&g.units[unit.id]){
+            const tile=g.tiles[hK(unit.q,unit.r)];
+            if(tile&&tile.isCity&&tile.owner&&tile.owner!==fac){
+                const stolen=Math.min(tile.prod,2);
+                g.res[fac]=(g.res[fac]||0)+stolen;
+                g.res[tile.owner]=Math.max(0,(g.res[tile.owner]||0)-stolen);
+                addLog(`Snatcher siphons ${stolen} catnips from ${tile.cityName}!`,'event');
+            }
+        }
+    });
+
+    // Train units
+    const myCities=Object.values(g.tiles).filter(t=>t.isCity&&t.owner===fac);
+    myCities.forEach(city=>{
+        if(unitAt(city.q,city.r))return;
+        const types=Object.keys(F[fac].units);
+        // Meerkats spam grunts
+        let pick;
+        if(fac==='meerkat'){pick=Math.random()<.6?'grunt':types[Math.floor(Math.random()*types.length)]}
+        else{pick=types[Math.floor(Math.random()*types.length)]}
+        const cost=F[fac].units[pick].cost;
+        if((g.res[fac]||0)>=cost)trainUnit(fac,pick,city.q,city.r);
+    });
+}
+
+function pickTarget(fac){
+    const g=G;
+    const style=F[fac].aiStyle||'opportunist';
+    const aiFacs=['kitty','ferret','meerkat','possum','crow','hyena'].filter(f=>f!==fac);
+    // Filter to factions that still have units or cities
+    const alive=aiFacs.filter(f=>Object.values(g.units).some(u=>u.faction===f)||Object.values(g.tiles).some(t=>t.isCity&&t.owner===f));
+    if(!alive.length)return'kitty';
+
+    if(style==='opportunist'){
+        // Target whoever has most resources (ferrets want to steal)
+        return alive.reduce((best,f)=>((g.res[f]||0)>(g.res[best]||0)?f:best),alive[0]);
+    }
+    if(style==='territorial'){
+        // Meerkats: attack nearest faction by border proximity
+        const myCap=CAPITALS[fac];
+        return alive.reduce((best,f)=>{
+            const cap=CAPITALS[f];
+            return hD(myCap,cap)<hD(myCap,CAPITALS[best])?f:best;
+        },alive[0]);
+    }
+    if(style==='scavenger'){
+        // Possums: attack weakest (fewest units)
+        return alive.reduce((best,f)=>{
+            const fc=Object.values(g.units).filter(u=>u.faction===f).length;
+            const bc=Object.values(g.units).filter(u=>u.faction===best).length;
+            return fc<bc?f:best;
+        },alive[0]);
+    }
+    if(style==='grudge'){
+        // Crows: attack whoever hit them last, default to nearest
+        if(g.grudges.crow&&alive.includes(g.grudges.crow))return g.grudges.crow;
+        const myCap=CAPITALS[fac];
+        return alive.reduce((best,f)=>hD(myCap,CAPITALS[f])<hD(myCap,CAPITALS[best])?f:best,alive[0]);
+    }
+    if(style==='dominant'){
+        // Hyenas: attack strongest (most units)
+        return alive.reduce((best,f)=>{
+            const fc=Object.values(g.units).filter(u=>u.faction===f).length;
+            const bc=Object.values(g.units).filter(u=>u.faction===best).length;
+            return fc>bc?f:best;
+        },alive[0]);
+    }
+    return'kitty';
+}
+
+// ================================================================
+// INCOME & TRAINING
+// ================================================================
+function collectIncome(fac){
+    let inc=0;
+    Object.values(G.tiles).forEach(t=>{
+        if(t.isCity&&t.owner===fac){
+            let ci=t.prod;
+            const gar=unitAt(t.q,t.r);
+            if(gar&&gar.faction===fac&&gar.isHero)ci*=2;
+            inc+=ci;
+        }
+    });
+    G.res[fac]=(G.res[fac]||0)+inc;
+    if(fac==='kitty')addLog(`+${inc} catnips collected`,'event');
+}
+
+function trainUnit(fac,type,q,r){
+    const tmpl=F[fac].units[type];if(!tmpl)return false;
+    if((G.res[fac]||0)<tmpl.cost)return false;
+    if(unitAt(q,r))return false;
+    G.res[fac]-=tmpl.cost;
+    const id='u'+(G.nextUid++);
+    G.units[id]={id,faction:fac,type,q,r,
+        hp:tmpl.hp,maxHp:tmpl.hp,
+        atk:tmpl.atk+(fac==='kitty'&&tmpl.rng<=1?G.fb.mAtk:0),
+        def:tmpl.def+(fac==='kitty'?G.fb.aDef:0),
+        mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,
+        moveLeft:0,hasAttacked:true,
+        icon:tmpl.ic,name:tmpl.n,
+        isHero:false,heroId:null,xp:0,level:1,kills:0,fakerUsed:false,
+    };
+    if(fac==='kitty')addLog(`Trained ${tmpl.n}`,'event');
+    return true;
+}
+
+function upgradeCity(q,r){
+    const k=hK(q,r),tile=G.tiles[k];
+    if(!tile||!tile.isCity||tile.owner!=='kitty')return false;
+    const lvl=tile.cityLevel||0,cost=6+lvl*4;
+    if(G.res.kitty<cost)return false;
+    G.res.kitty-=cost;tile.cityLevel=lvl+1;tile.prod+=1;
+    addLog(`${tile.cityName} upgraded to level ${tile.cityLevel}!`,'event');return true;
+}
+
+function doForge(){
+    if(G.forgeLevel>=FORGE.length)return;
+    const t=FORGE[G.forgeLevel];if(G.res.kitty<t.cost)return;
+    G.res.kitty-=t.cost;t.effect(G);addLog(`Forge: ${t.name} researched!`,'event');G.forgeLevel++;updateUI();
+}
+
+// ================================================================
+// TURNS
+// ================================================================
+const AI_FACS=['ferret','meerkat','possum','crow','hyena'];
+
+function startPlayerTurn(){
+    G.currentFaction='kitty';collectIncome('kitty');
+    eachUnit(G,'kitty',u=>{u.moveLeft=u.maxMv||u.mv;u.hasAttacked=false});
+    // Announce when peace period ends
+    const peaceTurns=PEACE_TURNS[difficulty]||0;
+    if(G.turn===peaceTurns+1&&peaceTurns>0)addLog('The peace period has ended. The factions are on the move.','event');
+    applyHeroAuras();updateVision();checkStory();updateUI();render();
+}
+
+function endTurn(){
+    if(!G||G.gameOver||G.currentFaction!=='kitty')return;
+    selU=null;sel=null;mvHL=[];atHL=[];
+    document.getElementById('tp').textContent='AI Turns...';
+
+    let i=0;
+    function nextAI(){
+        if(i>=AI_FACS.length||G.gameOver){
+            // Check if player lost
+            const ku=Object.values(G.units).filter(u=>u.faction==='kitty');
+            const kCap=Object.values(G.tiles).find(t=>t.isCapital&&t.owner==='kitty');
+            if(ku.length===0||!kCap){endGame('defeat');return}
+            G.turn++;startPlayerTurn();return;
+        }
+        const fac=AI_FACS[i];i++;
+        // Only run AI if faction has units or cities
+        const hasPresence=Object.values(G.units).some(u=>u.faction===fac)||Object.values(G.tiles).some(t=>t.isCity&&t.owner===fac);
+        if(hasPresence)runFactionAI(fac);
+        setTimeout(nextAI,80);
+    }
+    setTimeout(nextAI,200);
+}
+
+function endGame(winner){
+    G.gameOver=true;
+    const t=document.getElementById('ovt'),m=document.getElementById('ovm');
+    if(winner==='kitty'){
+        t.textContent='VICTORY!';t.style.color='#ff69b4';
+        m.textContent="All five capitals have fallen. Kitty City reigns supreme. Smitty Kitty has the Anvil back. On the way home, Shitty Kitty turns out her pockets. \"Oh, this? Found it on a shelf.\" It's the Ferret Scepter — the symbol of legitimate ferret authority. She has no idea what she's done.";
+    } else {
+        t.textContent='DEFEAT';t.style.color='#e94560';
+        m.textContent="Kitty City has fallen. The kitties scatter into the wilderness. But they'll be back. They always come back.";
+    }
+    document.getElementById('ov').style.display='flex';
+}
+
+function addLog(text,type=''){G.log.unshift({text,type});if(G.log.length>80)G.log.pop()}
+
+function checkStory(){
+    STORY_EVENTS.forEach(ev=>{
+        if(G.firedEvents.has(ev.id))return;
+        if(ev.turn&&G.turn<ev.turn)return;
+        if(ev.turn&&G.turn!==ev.turn&&!ev.cond(G))return;
+        if(!ev.cond(G))return;
+        G.firedEvents.add(ev.id);if(ev.flag)G.flags[ev.flag]=true;if(ev.effect)ev.effect(G);
+        mq.push({title:ev.title,speaker:ev.speaker,text:ev.text});
+    });
+    if(mq.length)showModal();
+}
+function showModal(){if(!mq.length)return;const e=mq.shift();document.getElementById('mt').textContent=e.title;document.getElementById('ms').textContent=e.speaker;document.getElementById('mdl').textContent=e.text;document.getElementById('mo').style.display='flex'}
+function closeModal(){document.getElementById('mo').style.display='none';if(mq.length)setTimeout(showModal,200)}
+
+// ================================================================
+// RENDERING
+// ================================================================
+function render(){
+    if(!G)return;
+    const cw=C.parentElement.clientWidth,ch=C.parentElement.clientHeight;
+    C.width=cw;C.height=ch;
+    X.fillStyle='#0d1117';X.fillRect(0,0,cw,ch);
+    X.save();X.translate(cw/2+cam.x,ch/2+cam.y);X.scale(cam.z,cam.z);
+
+    const mvS=new Set(mvHL.map(h=>hK(h.q,h.r))),atS=new Set(atHL.map(h=>hK(h.q,h.r)));
+
+    Object.values(G.tiles).forEach(tile=>{
+        const p=h2p(tile.q,tile.r),k=hK(tile.q,tile.r);
+        if(!tile.explored){dHex(p.x,p.y,HEX-1,'#0a0b10','#0a0b10',.5);return}
+        let col=tile.terrain.c;
+        if(tile.owner)col=blend(col,F[tile.owner].col,.15);
+        if(!tile.visible)col=blend(col,'#0a0b10',.55);
+        dHex(p.x,p.y,HEX-1,col,'#111520',1);
+
+        // Territory borders
+        if(tile.owner&&tile.visible){
+            hN(tile.q,tile.r).forEach(n=>{
+                const nT=G.tiles[hK(n.q,n.r)];
+                if(!nT||nT.owner!==tile.owner){
+                    const np=h2p(n.q,n.r),mx=(p.x+np.x)/2,my=(p.y+np.y)/2;
+                    const ang=Math.atan2(np.y-p.y,np.x-p.x);
+                    const px=Math.cos(ang+Math.PI/2)*HEX*.5,py=Math.sin(ang+Math.PI/2)*HEX*.5;
+                    X.beginPath();X.moveTo(mx-px,my-py);X.lineTo(mx+px,my+py);
+                    X.strokeStyle=F[tile.owner].col;X.lineWidth=2;X.globalAlpha=.5;X.stroke();X.globalAlpha=1;
+                }
+            });
+        }
+        if(!tile.visible)return;
+
+        if(mvS.has(k))dHex(p.x,p.y,HEX-2,'rgba(100,200,255,.2)','#5cc',1.5);
+        if(atS.has(k))dHex(p.x,p.y,HEX-2,'rgba(255,60,60,.25)','#f44',1.5);
+        if(sel&&tile.q===sel.q&&tile.r===sel.r)dHex(p.x,p.y,HEX,'','#fff',2.5);
+        if(hov&&tile.q===hov.q&&tile.r===hov.r)dHex(p.x,p.y,HEX,'','rgba(255,255,255,.3)',1.5);
+
+        X.textAlign='center';X.textBaseline='middle';
+        if(tile.terrain.id==='mountain'){X.fillStyle='#888';X.font='12px Arial';X.fillText('▲',p.x,p.y)}
+        if(tile.terrain.id==='forest'){X.fillStyle='#1a4a0f';X.font='10px Arial';X.fillText('♠',p.x-3,p.y);X.fillText('♠',p.x+3,p.y+2)}
+        if(tile.terrain.id==='water'){X.fillStyle='#2a6a9b';X.font='8px Arial';X.fillText('〰',p.x,p.y+1)}
+
+        if(tile.isCity){
+            const oc=tile.owner?F[tile.owner].col:'#aaa';
+            X.fillStyle=tile.isCapital?'#ffd700':oc;
+            X.font=tile.isCapital?'bold 12px Arial':'10px Arial';
+            X.fillText(tile.isCapital?'★':'●',p.x,p.y-HEX*.38);
+            X.fillStyle='#bbb';X.font='6px Arial';
+            const lvl=(tile.cityLevel||0);
+            X.fillText((tile.cityName||'')+(lvl>0?` (${lvl})`:''),p.x,p.y+HEX*.58);
+        }
+        const imp=G.improvements[k];
+        if(imp){X.fillStyle='#ddd';X.font='9px Arial';X.fillText(IMP[imp].icon,p.x+HEX*.3,p.y+HEX*.3)}
+    });
+
+    // Units
+    Object.values(G.units).forEach(unit=>{
+        const tile=G.tiles[hK(unit.q,unit.r)];
+        if(!tile||(!tile.visible&&unit.faction!=='kitty'))return;
+        const p=h2p(unit.q,unit.r),fac=F[unit.faction],sz=unit.isHero?13:10;
+        X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);
+        X.fillStyle=unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fac.dk):fac.dk;
+        X.fill();X.strokeStyle=fac.col;X.lineWidth=unit.isHero?2.5:1.5;X.stroke();
+        X.fillStyle='#fff';X.font=`${unit.isHero?13:11}px Arial`;X.textAlign='center';X.textBaseline='middle';
+        X.fillText(unit.icon,p.x,p.y);
+        const pct=unit.hp/unit.maxHp,bw=sz*1.3,bx=p.x-bw/2,by=p.y+sz+2;
+        X.fillStyle='#222';X.fillRect(bx,by,bw,2);
+        X.fillStyle=pct>.5?'#0e6':pct>.25?'#fa0':'#f14';X.fillRect(bx,by,bw*pct,2);
+        if(unit.level>1){X.fillStyle='#ffeb3b';X.font='bold 6px Arial';X.fillText('★'+unit.level,p.x+sz,p.y-sz+2)}
+        if(unit.moveLeft<=0&&unit.hasAttacked&&unit.faction==='kitty'){X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);X.fillStyle='rgba(0,0,0,.35)';X.fill()}
+        if(selU&&unit.id===selU.id){X.beginPath();X.arc(p.x,p.y,sz+3,0,Math.PI*2);X.strokeStyle='#fff';X.lineWidth=2;X.stroke()}
+    });
+    X.restore();renderMM();
+}
+
+function dHex(cx,cy,sz,fill,stroke,lw){
+    X.beginPath();for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-30),x=cx+sz*Math.cos(a),y=cy+sz*Math.sin(a);i===0?X.moveTo(x,y):X.lineTo(x,y)}X.closePath();
+    if(fill){X.fillStyle=fill;X.fill()}if(stroke){X.strokeStyle=stroke;X.lineWidth=lw||1;X.stroke()}
+}
+function blend(h1,h2,r){const c1=hRGB(h1),c2=hRGB(h2);return`rgb(${Math.round(c1.r*(1-r)+c2.r*r)},${Math.round(c1.g*(1-r)+c2.g*r)},${Math.round(c1.b*(1-r)+c2.b*r)})`}
+function hRGB(h){if(h.startsWith('rgb')){const m=h.match(/(\d+)/g);return{r:+m[0],g:+m[1],b:+m[2]}}h=h.replace('#','');return{r:parseInt(h.substr(0,2),16),g:parseInt(h.substr(2,2),16),b:parseInt(h.substr(4,2),16)}}
+
+function renderMM(){
+    mmC.width=160;mmC.height=140;mmX.fillStyle='#0d1117';mmX.fillRect(0,0,160,140);
+    const sc=2.8,ox=80,oy=70;
+    Object.values(G.tiles).forEach(t=>{
+        if(!t.explored)return;
+        const p=h2p(t.q,t.r),sx=ox+p.x*sc/HEX,sy=oy+p.y*sc/HEX;
+        let col=t.owner?F[t.owner].col:(t.visible?'#334':'#1a1a1a');
+        if(t.isCity)col=t.owner?F[t.owner].col:'#777';
+        mmX.fillStyle=col;mmX.fillRect(sx-1.5,sy-1.5,3,3);
+    });
+    const vx=ox+(-cam.x/cam.z)*sc/HEX,vy=oy+(-cam.y/cam.z)*sc/HEX;
+    const vw=(C.width/cam.z)*sc/HEX,vh=(C.height/cam.z)*sc/HEX;
+    mmX.strokeStyle='#ff69b4';mmX.lineWidth=1;mmX.strokeRect(vx-vw/2,vy-vh/2,vw,vh);
+}
+
+// ================================================================
+// UI
+// ================================================================
+function updateUI(){
+    document.getElementById('tn').textContent=G.turn;
+    const peaceTurns=PEACE_TURNS[difficulty]||0;
+    const peaceLeft=peaceTurns-G.turn;
+    document.getElementById('tp').textContent=peaceLeft>0?`Your Turn (Peace: ${peaceLeft} left)`:'Your Turn';
+    document.getElementById('ac').textContent=G.res.kitty;
+    const mc=Object.values(G.tiles).filter(t=>t.isCity&&t.owner==='kitty').length;
+    document.getElementById('cc').textContent=`Cities: ${mc}`;
+    document.getElementById('capcount').textContent=`Capitals: ${G.capturedCaps}/5`;
+    updateSel();updateTrain();updateForgeP();updateHeroP();updateLog();
+}
+
+function updateSel(){
+    const p=document.getElementById('selp');
+    if(!sel){p.innerHTML='<h3>Selection</h3><p style="font-size:11px;color:#667">Click a hex to inspect</p>';document.getElementById('actp').style.display='none';return}
+    const k=hK(sel.q,sel.r),tile=G.tiles[k];if(!tile)return;
+    let h=`<h3>${tile.terrain.name}${tile.isCity?' — '+(tile.cityName||'City'):''}</h3>`;
+    if(tile.isCity){
+        const ow=tile.owner?F[tile.owner].name:'Neutral';
+        const gar=unitAt(tile.q,tile.r),hg=gar&&gar.isHero&&gar.faction===tile.owner;
+        const ei=hg?tile.prod*2:tile.prod,cd=getCityDef(tile);
+        h+=`<div class="sr"><span class="l">Owner</span><span class="v" style="color:${tile.owner?F[tile.owner].col:'#888'}">${ow}</span></div>`;
+        h+=`<div class="sr"><span class="l">Level</span><span class="v">${tile.cityLevel||0}</span></div>`;
+        h+=`<div class="sr"><span class="l">Income</span><span class="v">${ei}/turn${hg?' (2x)':''}</span></div>`;
+        h+=`<div class="sr"><span class="l">Defense</span><span class="v">+${cd}${hg?' (2x)':''}</span></div>`;
+    } else h+=`<div class="sr"><span class="l">Defense</span><span class="v">+${tile.terrain.def}</span></div>`;
+    h+=`<div class="sr"><span class="l">Move cost</span><span class="v">${tile.terrain.mc<0?'Impass.':tile.terrain.mc}</span></div>`;
+
+    const imp=G.improvements[k];if(imp)h+=`<div class="sr"><span class="l">Improve.</span><span class="v">${IMP[imp].icon} ${IMP[imp].name}</span></div>`;
+
+    const unit=unitAt(sel.q,sel.r);
+    if(unit&&(unit.faction==='kitty'||tile.visible)){
+        const fc=F[unit.faction];
+        h+=`<div style="margin-top:5px;border-top:1px solid #2a2a3e;padding-top:5px">`;
+        h+=`<div style="color:${unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fc.col):fc.col};font-weight:bold;font-size:12px">${unit.icon} ${unit.name}${unit.level>1?' ★'+unit.level:''}</div>`;
+        h+=`<div style="font-size:9px;color:#556">${fc.name}${unit.isHero?' — Hero':''}</div>`;
+        if(unit.isHero&&HEROES[unit.heroId])h+=`<div style="font-size:9px;color:#ffab00;margin:1px 0">${HEROES[unit.heroId].ability}: ${HEROES[unit.heroId].abilityDesc}</div>`;
+        h+=`<div class="sr"><span class="l">HP</span><span class="v">${unit.hp}/${unit.maxHp}</span></div>`;
+        h+=`<div class="sr"><span class="l">ATK</span><span class="v">${unit.atk}${unit._rally?' (+1)':''}</span></div>`;
+        h+=`<div class="sr"><span class="l">DEF</span><span class="v">${unit.def}</span></div>`;
+        h+=`<div class="sr"><span class="l">Move</span><span class="v">${unit.moveLeft}/${unit.mv}</span></div>`;
+        h+=`<div class="sr"><span class="l">Range</span><span class="v">${unit.rng}</span></div>`;
+        h+=`<div class="sr"><span class="l">Kills</span><span class="v">${unit.kills}</span></div></div>`;
+    }
+
+    // City upgrade
+    if(tile.isCity&&tile.owner==='kitty'&&tile.visible){
+        const lvl=tile.cityLevel||0,cost=6+lvl*4;
+        h+=`<div style="margin-top:4px;border-top:1px solid #2a2a3e;padding-top:4px">`;
+        h+=`<button class="ba bf" style="font-size:10px;padding:4px" ${G.res.kitty>=cost?'':'disabled'} onclick="upgradeCity(${sel.q},${sel.r});updateUI();render()">⬆ Upgrade — ${cost} catnips<div style="font-size:9px;color:#889">+1 def, +1 income. Lvl ${lvl}</div></button></div>`;
+    }
+
+    // Improvements
+    if(tile.owner==='kitty'&&!tile.isCity&&!imp&&tile.terrain.mc>0&&tile.visible){
+        h+=`<div style="margin-top:4px;border-top:1px solid #2a2a3e;padding-top:4px"><div style="font-size:10px;color:#667;margin-bottom:2px">Build:</div>`;
+        Object.entries(IMP).forEach(([t,d])=>{
+            h+=`<button class="ba bt" style="font-size:10px;padding:3px" ${G.res.kitty>=d.cost?'':'disabled'} onclick="buildImp('${t}',${sel.q},${sel.r});updateUI();render()">${d.icon} ${d.name} (${d.cost})</button>`;
+        });
+        h+=`</div>`;
+    }
+    p.innerHTML=h;
+
+    const ap=document.getElementById('actp');
+    if(unit&&unit.faction==='kitty'&&(unit.moveLeft>0||!unit.hasAttacked)){
+        ap.style.display='block';let ah='<h3>Actions</h3>';
+        if(unit.moveLeft>0)ah+='<div style="font-size:10px;color:#5cc">Click blue hex to move</div>';
+        if(atHL.length)ah+='<div style="font-size:10px;color:#f66">Click red hex to attack</div>';
+        ap.innerHTML=ah;
+    } else ap.style.display='none';
+}
+
+function updateTrain(){
+    const p=document.getElementById('trnp');
+    if(!sel){p.style.display='none';return}
+    const k=hK(sel.q,sel.r),tile=G.tiles[k];
+    if(!tile||!tile.isCity||tile.owner!=='kitty'||unitAt(sel.q,sel.r)){p.style.display='none';return}
+    p.style.display='block';let h='<h3>Train Unit</h3>';
+    Object.entries(F.kitty.units).forEach(([type,tmpl])=>{
+        if(!G.unlocked[type])return;
+        h+=`<button class="ba bt" ${G.res.kitty>=tmpl.cost?'':'disabled'} onclick="doTrain('${type}',${sel.q},${sel.r})">${tmpl.ic} ${tmpl.n} — ${tmpl.cost} catnips<div style="font-size:9px;color:#667;margin-top:1px">${tmpl.d}</div></button>`;
+    });
+    p.innerHTML=h;
+}
+
+function updateForgeP(){
+    const p=document.getElementById('frgp');if(!forgeOpen){p.style.display='none';return}
+    p.style.display='block';let h="<h3>Smitty's Forge</h3>";
+    FORGE.forEach((t,i)=>{
+        if(i<G.forgeLevel)h+=`<div style="font-size:10px;color:#4a4;margin:3px 0">✓ ${t.name} — ${t.desc}</div>`;
+        else if(i===G.forgeLevel)h+=`<button class="ba bf" ${G.res.kitty>=t.cost?'':'disabled'} onclick="doForge();updateUI();render()">${t.name} — ${t.cost} catnips<div style="font-size:9px;color:#778;margin-top:1px">${t.desc}</div></button>`;
+        else h+=`<div style="font-size:10px;color:#445;margin:3px 0">🔒 ${t.name}</div>`;
+    });
+    if(G.forgeLevel>=FORGE.length)h+=`<div style="font-size:10px;color:#ff69b4;margin-top:4px">Forge complete.</div>`;
+    p.innerHTML=h;
+}
+
+function updateHeroP(){
+    const p=document.getElementById('herp');
+    const heroes=Object.values(G.units).filter(u=>u.isHero&&u.faction==='kitty');
+    if(!heroes.length&&!Object.keys(HEROES).some(h=>!Object.values(G.units).find(u=>u.heroId===h))){p.style.display='none';return}
+    p.style.display='block';let h='<h3>Heroes</h3>';
+    Object.keys(HEROES).forEach(hid=>{
+        const unit=Object.values(G.units).find(u=>u.heroId===hid);
+        const hero=HEROES[hid];
+        if(unit)h+=`<div style="font-size:10px;margin:1px 0;cursor:pointer;color:${hero.color}" onclick="centerOn(${unit.q},${unit.r})">${hero.ic} ${hero.name} ${unit.hp}/${unit.maxHp}${unit.level>1?' ★'+unit.level:''}</div>`;
+        else h+=`<div style="font-size:10px;margin:1px 0;color:#333;text-decoration:line-through">${hero.ic} ${hero.name} — fallen</div>`;
+    });
+    p.innerHTML=h;
+}
+
+function updateLog(){document.getElementById('loge').innerHTML=G.log.slice(0,18).map(l=>`<div class="le ${l.type}">${l.text}</div>`).join('')}
+
+function toggleForge(){forgeOpen=!forgeOpen;updateUI()}
+function toggleFog(){fogOn=!fogOn;document.getElementById('fogb').textContent=fogOn?'Fog: ON':'Fog: OFF';if(!fogOn)Object.values(G.tiles).forEach(t=>{t.visible=true;t.explored=true});else updateVision();render()}
+function toggleAI(){aiMode=aiMode==='aggressive'?'defensive':'aggressive';document.getElementById('aib').textContent=`AI: ${aiMode==='aggressive'?'Aggressive':'Defensive'}`}
+function toggleDifficulty(){const order=['easy','normal','hard','crazy'];const i=(order.indexOf(difficulty)+1)%order.length;difficulty=order[i];const labels={easy:'Easy',normal:'Normal',hard:'Hard',crazy:'Crazy'};document.getElementById('difb').textContent=`Difficulty: ${labels[difficulty]}`}
+function doTrain(type,q,r){if(trainUnit('kitty',type,q,r)){updateVision();updateUI();render()}}
+function centerOn(q,r){const p=h2p(q,r);cam.x=-p.x*cam.z;cam.y=-p.y*cam.z;sel={q,r};selU=unitAt(q,r);if(selU&&selU.faction==='kitty'){mvHL=Object.values(getReach(selU));atHL=getAtk(selU).map(u=>({q:u.q,r:u.r}))}updateUI();render()}
+
+// ================================================================
+// INPUT
+// ================================================================
+function setupInput(){
+    C.addEventListener('mousedown',e=>{drag=false;dragS={x:e.clientX,y:e.clientY};camS={x:cam.x,y:cam.y}});
+    C.addEventListener('mousemove',e=>{
+        if(e.buttons===1){const dx=e.clientX-dragS.x,dy=e.clientY-dragS.y;if(Math.abs(dx)>3||Math.abs(dy)>3)drag=true;cam.x=camS.x+dx;cam.y=camS.y+dy;render();return}
+        const rect=C.getBoundingClientRect(),mx=(e.clientX-rect.left-C.width/2-cam.x)/cam.z,my=(e.clientY-rect.top-C.height/2-cam.y)/cam.z;
+        const hex=p2h(mx,my);hov=G.tiles[hK(hex.q,hex.r)]?hex:null;render();
+    });
+    C.addEventListener('mouseup',e=>{
+        if(drag)return;if(G.gameOver||G.currentFaction!=='kitty')return;
+        const rect=C.getBoundingClientRect(),mx=(e.clientX-rect.left-C.width/2-cam.x)/cam.z,my=(e.clientY-rect.top-C.height/2-cam.y)/cam.z;
+        const hex=p2h(mx,my);if(!G.tiles[hK(hex.q,hex.r)])return;handleClick(hex);
+    });
+    C.addEventListener('wheel',e=>{e.preventDefault();cam.z=Math.max(.3,Math.min(2.5,cam.z+(e.deltaY>0?-.06:.06)));render()},{passive:false});
+    document.addEventListener('keydown',e=>{
+        if(e.key==='e'||e.key==='E')endTurn();
+        if(e.key==='f'||e.key==='F'){forgeOpen=!forgeOpen;updateUI()}
+        if(e.key>='1'&&e.key<='6'){const ids=Object.keys(HEROES),idx=+e.key-1;if(idx<ids.length){const u=Object.values(G.units).find(u=>u.heroId===ids[idx]);if(u)centerOn(u.q,u.r)}}
+    });
+}
+
+function handleClick(hex){
+    const k=hK(hex.q,hex.r),tile=G.tiles[k],clicked=unitAt(hex.q,hex.r);
+    if(selU&&mvHL.find(h=>h.q===hex.q&&h.r===hex.r)){
+        selU.q=hex.q;selU.r=hex.r;selU.moveLeft-=Math.max(1,tile.terrain.mc);if(selU.moveLeft<0)selU.moveLeft=0;
+        checkCap(selU);updateVision();if(G.gameOver)return;
+        if(!G.flags.firstEnemySeen){Object.values(G.units).forEach(fu=>{if(fu.faction!=='kitty'&&tile.visible&&hD({q:selU.q,r:selU.r},{q:fu.q,r:fu.r})<=3)G.flags.firstEnemySeen=true})}
+        mvHL=Object.values(getReach(selU));atHL=getAtk(selU).map(u=>({q:u.q,r:u.r}));sel=hex;updateUI();render();checkStory();return;
+    }
+    if(selU&&atHL.find(h=>h.q===hex.q&&h.r===hex.r)){
+        const target=unitAt(hex.q,hex.r);
+        if(target&&target.faction!==selU.faction){
+            combat(selU,target);
+            if(G.units[selU.id]){sel={q:selU.q,r:selU.r};mvHL=[];atHL=[]}else{selU=null;sel=null;mvHL=[];atHL=[]}
+            updateVision();if(G.gameOver)return;updateUI();render();checkStory();return;
+        }
+    }
+    if(clicked&&clicked.faction==='kitty'){selU=clicked;sel=hex;mvHL=Object.values(getReach(clicked));atHL=getAtk(clicked).map(u=>({q:u.q,r:u.r}));updateUI();render();return}
+    selU=null;sel=hex;mvHL=[];atHL=[];updateUI();render();
+}
+
+// ================================================================
+// START
+// ================================================================
+function startGame(){
+    document.getElementById('ts').style.display='none';
+    document.getElementById('top-bar').style.display='flex';
+    document.getElementById('main-area').style.display='flex';
+    C=document.getElementById('gc');X=C.getContext('2d');
+    mmC=document.getElementById('mm');mmX=mmC.getContext('2d');
+    G=createGame();
+    addLog('Campaign begins. Capture all 5 rival capitals.','story');
+    addLog('Spend catnips to train, research, and upgrade.','story');
+    setupInput();
+    cam.x=0;cam.y=0; // Kitty City is at center
+    startPlayerTurn();
+    window.addEventListener('resize',render);
+}
+</script>
+</body>
+</html>
