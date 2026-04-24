@@ -167,6 +167,7 @@ const BIOMES={
   blossom:{paper:'#fff5f8',ink:'#4a1d35',floor:'#ffeaf2'},
 };
 
+
 // ================================================================
 // SVG SPRITE SYSTEM — generates Image objects from SVG strings
 // ================================================================
@@ -442,6 +443,7 @@ function buildPortraitSVG(heroId,expression){
   </svg>`;
 }
 
+
 // ================================================================
 // UNIT SPRITE SVG BUILDERS (existing, preserved)
 // ================================================================
@@ -551,8 +553,6 @@ function svgBody(p){
   </g>`;
 }
 
-
-}
 
 function svgAccessory(faction,unit,p){
   const ink=p.ink,metal=p.metal,cloth=p.cloth,acc=p.accent;
@@ -869,6 +869,7 @@ function buildUnitSVG(faction,unitId){
   </svg>`;
 }
 
+
 function buildHeroSVG(heroId){
   const p=HERO_PALETTES[heroId];
   if(!p)return null;
@@ -880,8 +881,59 @@ function buildHeroSVG(heroId){
   </svg>`;
 }
 
+
+function svgToImage(svgStr){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=()=>resolve(null);
+    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgStr);
+  });
+}
+
+async function preloadSprites(){
+  const promises=[];
+  Object.entries(F).forEach(([fac,fdata])=>{
+    Object.keys(fdata.units).forEach(uid=>{
+      const svg=buildUnitSVG(fac,uid);
+      if(svg){
+        const key=fac+'.'+uid;
+        promises.push(svgToImage(svg).then(img=>{if(img)SPRITES[key]=img}));
+      }
+    });
+  });
+  Object.keys(HEROES).forEach(hid=>{
+    const svg=buildHeroSVG(hid);
+    if(svg){
+      const key='hero.'+hid;
+      promises.push(svgToImage(svg).then(img=>{if(img)SPRITES[key]=img}));
+    }
+  });
+  // Emblem sprites
+  Object.entries(EMBLEM_BUILDERS).forEach(([fac,builder])=>{
+    const svg=builder();
+    if(svg){
+      const key='emblem.'+fac;
+      promises.push(svgToImage(svg).then(img=>{if(img)SPRITES[key]=img}));
+    }
+  });
+  // Portrait sprites (all expressions)
+  Object.keys(HERO_PALETTES).forEach(hid=>{
+    HERO_EXPRESSIONS.forEach(expr=>{
+      const svg=buildPortraitSVG(hid,expr);
+      if(svg){
+        const key='portrait.'+hid+'.'+expr;
+        promises.push(svgToImage(svg).then(img=>{if(img)SPRITES[key]=img}));
+      }
+    });
+  });
+  await Promise.all(promises);
+  spritesReady=true;
+}
+
+
 // ================================================================
-// TERRAIN — Updated warm palette + new types
+// TERRAIN — Updated with new structure types
 // ================================================================
 const T={
     PLAINS:  {id:'plains',  c:'#e8e0c8',name:'Plains',  mc:1,def:0},
@@ -889,11 +941,21 @@ const T={
     MOUNTAIN:{id:'mountain',c:'#c7bdae',name:'Mountain',mc:3,def:2},
     WATER:   {id:'water',   c:'#5e8aab',name:'Water',   mc:-1,def:0},
     CITY:    {id:'city',    c:'#f2eadb',name:'City',     mc:1,def:1},
-    CAFE:    {id:'cafe',    c:'#ffd5e4',name:'Cafe',     mc:1,def:0},
-    FORGE_T: {id:'forge_t', c:'#8a7f71',name:'Forge',    mc:1,def:1},
-    ORDNANCE:{id:'ordnance',c:'#b35c44',name:'Ordnance Pile',mc:1,def:0},
-    RUIN:    {id:'ruin',    c:'#a8a098',name:'Ruin',     mc:1,def:0},
+    CAFE:    {id:'cafe',    c:'#d4a574',name:'Cafe',     mc:1,def:0},
+    FORGE_T: {id:'forge_t', c:'#8a7a6a',name:'Forge',   mc:1,def:1},
+    ORDNANCE:{id:'ordnance',c:'#c45050',name:'Ordnance Pile',mc:1,def:0},
+    RUIN:    {id:'ruin',    c:'#b0a890',name:'Ruin',     mc:1,def:1},
     BRIDGE:  {id:'bridge',  c:'#a08060',name:'Bridge',   mc:1,def:0},
+};
+
+// Biome color tinting
+const BIOME_TINTS={
+  standard:{plains:'#e8e0c8',forest:'#6a8a5f',mountain:'#c7bdae',water:'#5e8aab',city:'#f2eadb',
+    cafe:'#d4a574',forge_t:'#8a7a6a',ordnance:'#c45050',ruin:'#b0a890',bridge:'#a08060'},
+  dusk:{plains:'#3a2d55',forest:'#2d4a3a',mountain:'#4a3d5a',water:'#2a3a5a',city:'#2b2048',
+    cafe:'#5a3a2a',forge_t:'#3a2a3a',ordnance:'#6a2a2a',ruin:'#3a3048',bridge:'#4a3020'},
+  blossom:{plains:'#ffeaf2',forest:'#8aaa7a',mountain:'#e8c8d8',water:'#7aadca',city:'#fff5f8',
+    cafe:'#e8a888',forge_t:'#a08878',ordnance:'#d86868',ruin:'#d8c8b8',bridge:'#b89878'},
 };
 
 const F={
@@ -995,9 +1057,6 @@ const STORY_EVENTS=[
 
 function eachUnit(g,fac,fn){Object.values(g.units).forEach(u=>{if(u.faction===fac)fn(u)})}
 
-// ================================================================
-// GLOBALS
-// ================================================================
 let C,X,G=null;
 let cam={x:0,y:0,z:.85};
 let hov=null,sel=null,selU=null;
@@ -1020,6 +1079,9 @@ const hN=(q,r)=>[{q:q+1,r},{q:q-1,r},{q,r:r+1},{q,r:r-1},{q:q+1,r:r-1},{q:q-1,r:
 
 // ================================================================
 // MAP GENERATION — radius 10, ~331 tiles, 6 capitals
+
+// ================================================================
+// MAP GENERATION
 // ================================================================
 const CAPITALS={
     kitty:  {q:0,r:0,   name:'Kitty City'},
@@ -1029,66 +1091,6 @@ const CAPITALS={
     crow:   {q:-8,r:2,  name:"Crow's Nest"},
     hyena:  {q:-2,r:-8, name:'Hyena Heights'},
 };
-
-function genMap(){
-    const tiles={};
-    const seed=Math.random()*10000;
-    for(let q=-MAP_R;q<=MAP_R;q++) for(let r=-MAP_R;r<=MAP_R;r++){
-        if(Math.abs(q+r)>MAP_R||hD({q,r},{q:0,r:0})>MAP_R) continue;
-        const n1=pn(q*5.7+seed,r*7.3+seed),n2=pn(q*3.1+seed+100,r*9.2+seed+200),n3=pn(q*11.3+seed+300,r*4.8+seed+400);
-        const c=n1*.5+n2*.3+n3*.2;
-        let t=T.PLAINS;
-        if(c>.58) t=T.FOREST;
-        if(c>.78) t=T.MOUNTAIN;
-        const wn=pn(q*2.3+seed+500,r*2.7+seed+600);
-        if(wn>.88&&hD({q,r},{q:0,r:0})>2) t=T.WATER;
-        Object.values(CAPITALS).forEach(cap=>{if(hD({q,r},{q:cap.q,r:cap.r})<=2)t=T.PLAINS});
-        tiles[hK(q,r)]={q,r,terrain:t,owner:null,isCity:false,cityName:null,prod:0,isCapital:false,cityLevel:0,visible:false,explored:false};
-    }
-    Object.entries(CAPITALS).forEach(([fac,cap])=>{
-        setCity(tiles,cap.q,cap.r,fac,cap.name,4,true);
-    });
-    const vs=[
-        {q:4,r:-2},{q:5,r:1},{q:1,r:4},{q:-2,r:5},{q:-4,r:5},{q:-5,r:0},{q:-4,r:-3},{q:-1,r:-4},{q:2,r:-4},
-        {q:0,r:2},{q:2,r:0},{q:-2,r:0},{q:0,r:-2},{q:6,r:-6},{q:-6,r:-2},{q:3,r:-7},{q:-3,r:3},{q:6,r:3},
-    ];
-    const vn=['Whisker Village','Paw Crossing','Catnip Glen','Mousehole','Yarn Town','Scratch Post','Purr Haven',
-              'Fur Landing','Claw Creek','The Litterbox','Nap Meadow','Hiss Crossing','Tail End','Fang Hollow',
-              'Pounce Point','Meow Market','Bristle Bridge','Prowl Path'];
-    vs.forEach((s,i)=>{
-        const k=hK(s.q,s.r);
-        if(tiles[k]&&tiles[k].terrain.id!=='water'&&!tiles[k].isCity)
-            setCity(tiles,s.q,s.r,null,vn[i]||'Village',2,false);
-// ================================================================
-// GAME STATE
-// ================================================================
-function createGame(){
-    const tiles=genMap(),units={};let uid=0;
-    const mk=(fac,type,q,r,heroId)=>{
-        const tmpl=heroId?HEROES[heroId]:F[fac].units[type];
-        const id='u'+(uid++);
-        units[id]={id,faction:fac,type:heroId?'hero':type,q,r,
-            hp:tmpl.hp,maxHp:tmpl.hp,atk:tmpl.atk,def:tmpl.def,
-            icon:tmpl.ic,name:heroId?tmpl.name:tmpl.n,
-            isHero:!!heroId,heroId:heroId||null,
-            xp:0,level:1,kills:0,
-            fakerUsed:false,
-        };
-    };
-    // Kitty starting units
-    mk('kitty','fiter',0,0,'hitty');mk('kitty','fiter',0,-1,'gritty');mk('kitty','fiter',-1,1,'witty');
-// ================================================================
-// MAP GENERATION — radius 10, ~331 tiles, 6 capitals, biomes, structures
-// ================================================================
-const CAPITALS={
-    kitty:  {q:0,r:0,   name:'Kitty City'},
-    ferret: {q:8,r:-4,  name:'Ferret City'},
-    meerkat:{q:3,r:7,   name:'Meerkat Burrows'},
-    possum: {q:-6,r:8,  name:'Possum Town'},
-    crow:   {q:-8,r:2,  name:"Crow's Nest"},
-    hyena:  {q:-2,r:-8, name:'Hyena Heights'},
-};
-
 function assignBiome(q,r){
     const dist=hD({q,r},{q:0,r:0});
     if(dist<=3) return 'standard';
@@ -1096,7 +1098,6 @@ function assignBiome(q,r){
     if(q>1 && r>2) return 'blossom';
     return 'standard';
 }
-
 function genMap(){
     const tiles={};
     const seed=Math.random()*10000;
@@ -1114,23 +1115,13 @@ function genMap(){
         tiles[hK(q,r)]={q,r,terrain:t,owner:null,isCity:false,cityName:null,prod:0,isCapital:false,cityLevel:0,visible:false,explored:false,biome,
             isCafe:false,isForgeStructure:false,isOrdnance:false,isRuin:false,ruinUsed:false,isBridge:false};
     }
-    Object.entries(CAPITALS).forEach(([fac,cap])=>{
-        setCity(tiles,cap.q,cap.r,fac,cap.name,4,true);
-    });
-    const vs=[
-        {q:4,r:-2},{q:5,r:1},{q:1,r:4},{q:-2,r:5},{q:-4,r:5},{q:-5,r:0},{q:-4,r:-3},{q:-1,r:-4},{q:2,r:-4},
-        {q:0,r:2},{q:2,r:0},{q:-2,r:0},{q:0,r:-2},{q:6,r:-6},{q:-6,r:-2},{q:3,r:-7},{q:-3,r:3},{q:6,r:3},
-    ];
+    Object.entries(CAPITALS).forEach(([fac,cap])=>{setCity(tiles,cap.q,cap.r,fac,cap.name,4,true)});
+    const vs=[{q:4,r:-2},{q:5,r:1},{q:1,r:4},{q:-2,r:5},{q:-4,r:5},{q:-5,r:0},{q:-4,r:-3},{q:-1,r:-4},{q:2,r:-4},
+        {q:0,r:2},{q:2,r:0},{q:-2,r:0},{q:0,r:-2},{q:6,r:-6},{q:-6,r:-2},{q:3,r:-7},{q:-3,r:3},{q:6,r:3}];
     const vn=['Whisker Village','Paw Crossing','Catnip Glen','Mousehole','Yarn Town','Scratch Post','Purr Haven',
               'Fur Landing','Claw Creek','The Litterbox','Nap Meadow','Hiss Crossing','Tail End','Fang Hollow',
               'Pounce Point','Meow Market','Bristle Bridge','Prowl Path'];
-    vs.forEach((s,i)=>{
-        const k=hK(s.q,s.r);
-        if(tiles[k]&&tiles[k].terrain.id!=='water'&&!tiles[k].isCity)
-            setCity(tiles,s.q,s.r,null,vn[i]||'Village',2,false);
-    });
-
-    // Place structures
+    vs.forEach((s,i)=>{const k=hK(s.q,s.r);if(tiles[k]&&tiles[k].terrain.id!=='water'&&!tiles[k].isCity)setCity(tiles,s.q,s.r,null,vn[i]||'Village',2,false)});
     const allKeys=Object.keys(tiles);
     const shuffled=allKeys.sort(()=>Math.random()-0.5);
     let cafeCount=0,forgeCount=0,ordCount=0,ruinCount=0,bridgeCount=0;
@@ -1139,35 +1130,20 @@ function genMap(){
         if(!t||t.isCity||t.terrain.id==='water') continue;
         const dist=hD({q:t.q,r:t.r},{q:0,r:0});
         if(dist<3) continue;
-        if(cafeCount<4&&t.terrain.id==='plains'&&Math.random()<0.015){
-            t.terrain=T.CAFE;t.isCafe=true;cafeCount++;continue;
-        }
-        if(forgeCount<3&&t.terrain.id==='plains'&&Math.random()<0.012){
-            t.terrain=T.FORGE_T;t.isForgeStructure=true;forgeCount++;continue;
-        }
-        if(ordCount<4&&(t.terrain.id==='plains'||t.terrain.id==='forest')&&Math.random()<0.014){
-            t.terrain=T.ORDNANCE;t.isOrdnance=true;ordCount++;continue;
-        }
-        if(ruinCount<6&&t.terrain.id==='plains'&&Math.random()<0.02){
-            t.terrain=T.RUIN;t.isRuin=true;ruinCount++;continue;
-        }
+        if(cafeCount<4&&t.terrain.id==='plains'&&Math.random()<0.015){t.terrain=T.CAFE;t.isCafe=true;cafeCount++;continue}
+        if(forgeCount<3&&t.terrain.id==='plains'&&Math.random()<0.012){t.terrain=T.FORGE_T;t.isForgeStructure=true;forgeCount++;continue}
+        if(ordCount<4&&(t.terrain.id==='plains'||t.terrain.id==='forest')&&Math.random()<0.014){t.terrain=T.ORDNANCE;t.isOrdnance=true;ordCount++;continue}
+        if(ruinCount<6&&t.terrain.id==='plains'&&Math.random()<0.02){t.terrain=T.RUIN;t.isRuin=true;ruinCount++;continue}
     }
     for(const k of allKeys){
-        const t=tiles[k];
-        if(!t||t.terrain.id!=='water') continue;
-        if(bridgeCount>=5) break;
+        const t=tiles[k];if(!t||t.terrain.id!=='water') continue;if(bridgeCount>=5) break;
         const neighbors=hN(t.q,t.r);
-        const landNeighbors=neighbors.filter(n=>{const nt=tiles[hK(n.q,n.r)];return nt&&nt.terrain.mc>0});
-        if(landNeighbors.length>=2&&Math.random()<0.25){
-            t.terrain=T.BRIDGE;t.isBridge=true;bridgeCount++;
-        }
+        const landN=neighbors.filter(n=>{const nt=tiles[hK(n.q,n.r)];return nt&&nt.terrain.mc>0});
+        if(landN.length>=2&&Math.random()<0.25){t.terrain=T.BRIDGE;t.isBridge=true;bridgeCount++}
     }
     return tiles;
 }
-function setCity(tiles,q,r,owner,name,prod,isCap){
-    const k=hK(q,r);if(!tiles[k])return;
-    Object.assign(tiles[k],{terrain:T.CITY,isCity:true,owner,cityName:name,prod,isCapital:isCap,cityLevel:0});
-}
+function setCity(tiles,q,r,owner,name,prod,isCap){const k=hK(q,r);if(!tiles[k])return;Object.assign(tiles[k],{terrain:T.CITY,isCity:true,owner,cityName:name,prod,isCapital:isCap,cityLevel:0})}
 function pn(x,y){let n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n)}
 
 // ================================================================
@@ -1176,17 +1152,10 @@ function pn(x,y){let n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(
 function createGame(){
     const tiles=genMap(),units={};let uid=0;
     const mk=(fac,type,q,r,heroId)=>{
-        const tmpl=heroId?HEROES[heroId]:F[fac].units[type];
-        const id='u'+(uid++);
-        units[id]={id,faction:fac,type:heroId?'hero':type,q,r,
-            hp:tmpl.hp,maxHp:tmpl.hp,atk:tmpl.atk,def:tmpl.def,
-            mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,
-            moveLeft:tmpl.mv,hasAttacked:false,
-            icon:tmpl.ic,name:heroId?tmpl.name:tmpl.n,
-            isHero:!!heroId,heroId:heroId||null,
-            xp:0,level:1,kills:0,
-            fakerUsed:false,
-        };
+        const tmpl=heroId?HEROES[heroId]:F[fac].units[type];const id='u'+(uid++);
+        units[id]={id,faction:fac,type:heroId?'hero':type,q,r,hp:tmpl.hp,maxHp:tmpl.hp,atk:tmpl.atk,def:tmpl.def,
+            mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,moveLeft:tmpl.mv,hasAttacked:false,
+            icon:tmpl.ic,name:heroId?tmpl.name:tmpl.n,isHero:!!heroId,heroId:heroId||null,xp:0,level:1,kills:0,fakerUsed:false};
     };
     mk('kitty','fiter',0,0,'hitty');mk('kitty','fiter',0,-1,'gritty');mk('kitty','fiter',-1,1,'witty');
     mk('kitty','fiter',1,0,'pritty');mk('kitty','fiter',-1,0,'skitty');mk('kitty','fiter',1,-1,'shitty');
@@ -1196,21 +1165,12 @@ function createGame(){
     mk('possum','scavenger',-6,8);mk('possum','playdead',-6,7);mk('possum','trickster',-5,7);
     mk('crow','messenger',-8,2);mk('crow','messenger',-7,2);mk('crow','divestriker',-8,3);mk('crow','tooluser',-7,1);
     mk('hyena','brute',-2,-8);mk('hyena','brute',-3,-7);mk('hyena','howler',-1,-8);
-    const aiFactions=['ferret','meerkat','possum','crow','hyena'];
-    const res={};
-    aiFactions.forEach(f=>res[f]=10);
-    res.kitty=12;
-    return{
-        tiles,units,turn:1,currentFaction:'kitty',
-        res,nextUid:uid,log:[],gameOver:false,
-        forgeLevel:0,fb:{mAtk:0,aDef:0,regen:0},
-        unlocked:{fiter:true,bloker:true,shoter:false,crusher:false},
-        flags:{},firedEvents:new Set(),improvements:{},
-        grudges:{},provoked:{},capturedCaps:0,
-    };
+    const aiFacs=['ferret','meerkat','possum','crow','hyena'];const res={};aiFacs.forEach(f=>res[f]=10);res.kitty=12;
+    return{tiles,units,turn:1,currentFaction:'kitty',res,nextUid:uid,log:[],gameOver:false,
+        forgeLevel:0,fb:{mAtk:0,aDef:0,regen:0},unlocked:{fiter:true,bloker:true,shoter:false,crusher:false},
+        flags:{},firedEvents:new Set(),improvements:{},grudges:{},provoked:{},capturedCaps:0};
 }
 
-// ================================================================
 function updateVision(){
     if(!fogOn){Object.values(G.tiles).forEach(t=>{t.visible=true;t.explored=true});return}
     Object.values(G.tiles).forEach(t=>t.visible=false);
@@ -1229,6 +1189,8 @@ function updateVision(){
 }
 
 // ================================================================
+// HERO AURAS
+// ================================================================
 function applyHeroAuras(){
     eachUnit(G,'kitty',u=>{u._rally=0;u._heal=0});
     Object.values(G.units).forEach(u=>{
@@ -1240,6 +1202,9 @@ function applyHeroAuras(){
 }
 
 // ================================================================
+// IMPROVEMENTS
+// ================================================================
+
 const IMP={farm:{name:'Farm',cost:4,desc:'+1 income to nearest city',icon:'🌾'},workshop:{name:'Workshop',cost:6,desc:'+2 income to nearest city',icon:'🔧'},watchtower:{name:'Watchtower',cost:5,desc:'+2 vision',icon:'🗼'}};
 function buildImp(type,q,r){
     const i=IMP[type];if(G.res.kitty<i.cost)return false;
@@ -1254,6 +1219,8 @@ function buildImp(type,q,r){
 }
 
 // ================================================================
+// PATHFINDING
+
 function getReach(unit){
     const reach={},vis={};
     const q0=[{q:unit.q,r:unit.r,cost:0}];vis[hK(unit.q,unit.r)]=0;
@@ -1281,6 +1248,8 @@ function getAtk(unit){
 function unitAt(q,r){return Object.values(G.units).find(u=>u.q===q&&u.r===r)}
 
 // ================================================================
+// COMBAT (updated unit type references)
+// ================================================================
 function getCityDef(tile){
     if(!tile)return 0;
     if(!tile.isCity)return tile.terrain.def;
@@ -1289,6 +1258,7 @@ function getCityDef(tile){
     if(g&&g.isHero&&tile.owner===g.faction)d*=2;
     return d;
 }
+
 
 function combat(atk,def){
     const g=G,dTile=g.tiles[hK(def.q,def.r)];
@@ -1363,99 +1333,68 @@ function combat(atk,def){
 function checkLvl(u){const need=u.level*5;if(u.xp>=need){u.level++;u.xp-=need;u.maxHp+=2;u.hp=Math.min(u.hp+2,u.maxHp);u.atk++;if(u.level%2===0)u.def++;addLog(`${u.name} reached level ${u.level}!`,'event')}}
 
 // ================================================================
-// CITY CAPTURE + ORDNANCE EXPLOSION
+// CITY CAPTURE
+
+// ================================================================
+// CITY CAPTURE + ORDNANCE + SCAVENGE
 // ================================================================
 function checkCap(unit){
     const k=hK(unit.q,unit.r),tile=G.tiles[k];
     if(!tile)return;
-
-    // Ordnance pile: deal 3 damage to all adjacent enemies on capture
     if(tile.isOrdnance&&tile.owner!==unit.faction){
         tile.owner=unit.faction;
-        const neighbors=hN(tile.q,tile.r);
         let hitCount=0;
-        neighbors.forEach(n=>{
+        hN(tile.q,tile.r).forEach(n=>{
             const eu=unitAt(n.q,n.r);
             if(eu&&eu.faction!==unit.faction){
                 eu.hp-=3;hitCount++;
-                if(eu.hp<=0){
-                    addLog(`${eu.name} destroyed by ordnance explosion!`,'combat');
-                    if(eu.isHero)G.flags.heroKilled=true;
-                    delete G.units[eu.id];
-                } else {
-                    addLog(`${eu.name} takes 3 damage from ordnance!`,'combat');
-                }
+                if(eu.hp<=0){addLog(eu.name+' destroyed by ordnance explosion!','combat');if(eu.isHero)G.flags.heroKilled=true;delete G.units[eu.id]}
+                else addLog(eu.name+' takes 3 damage from ordnance!','combat');
             }
         });
-        if(hitCount>0) addLog(`Ordnance pile explodes! ${hitCount} enemies hit.`,'event');
-        else addLog(`${F[unit.faction].name} captures ordnance pile.`,'event');
+        if(hitCount>0) addLog('Ordnance pile explodes! '+hitCount+' enemies hit.','event');
         return;
     }
-
-    // Structure ownership (cafe, forge)
     if((tile.isCafe||tile.isForgeStructure)&&tile.owner!==unit.faction){
-        const prev=tile.owner;
         tile.owner=unit.faction;
-        addLog(`${F[unit.faction].name} captures ${tile.terrain.name}!`,'event');
+        addLog(F[unit.faction].name+' captures '+tile.terrain.name+'!','event');
         return;
     }
-
     if(!tile.isCity||tile.owner===unit.faction)return;
     const prev=tile.owner;tile.owner=unit.faction;
-    addLog(`${F[unit.faction].name} captures ${tile.cityName||'Village'}!`,'event');
+    addLog(F[unit.faction].name+' captures '+(tile.cityName||'Village')+'!','event');
     if(!prev&&unit.faction==='kitty')G.flags.firstVillage=true;
     if(tile.isCapital&&prev&&prev!==unit.faction){
-        if(unit.faction==='kitty'){
-            G.capturedCaps++;G.flags.firstCapCaptured=true;
-            if(G.capturedCaps>=5)endGame('kitty');
-        }
-        if(unit.faction!=='kitty'&&prev!=='kitty'){
-            addLog(`${F[unit.faction].name} has conquered ${F[prev].name}!`,'event');
-        }
+        if(unit.faction==='kitty'){G.capturedCaps++;G.flags.firstCapCaptured=true;if(G.capturedCaps>=5)endGame('kitty')}
+        if(unit.faction!=='kitty'&&prev!=='kitty')addLog(F[unit.faction].name+' has conquered '+F[prev].name+'!','event');
         if(prev==='kitty')endGame(prev);
     }
 }
-
-// Scavenge ruin action
 function scavengeRuin(q,r){
     const k=hK(q,r),tile=G.tiles[k];
-    if(!tile||!tile.isRuin||tile.ruinUsed) return;
+    if(!tile||!tile.isRuin||tile.ruinUsed)return;
     const unit=unitAt(q,r);
-    if(!unit||unit.faction!=='kitty'||unit.moveLeft<unit.maxMv) return;
-    tile.ruinUsed=true;
-    unit.moveLeft=0;
+    if(!unit||unit.faction!=='kitty'||unit.moveLeft<unit.maxMv)return;
+    tile.ruinUsed=true;unit.moveLeft=0;
     const roll=Math.random();
-    if(roll<0.45){
-        const amt=3+Math.floor(Math.random()*6);
-        G.res.kitty+=amt;
-        addLog(`Scavenged ${amt} catnips from the ruin!`,'event');
-    } else if(roll<0.75){
-        // Free unit
-        const types=['fiter','bloker'];
-        const type=types[Math.floor(Math.random()*types.length)];
-        if(!unitAt(q,r+1)){
-            const nq=q,nr=r+1;
-            const tmpl=F.kitty.units[type];
-            const id='u'+(G.nextUid++);
-            G.units[id]={id,faction:'kitty',type,q:nq,r:nr,
-                hp:tmpl.hp,maxHp:tmpl.hp,atk:tmpl.atk,def:tmpl.def,
-                mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,
-                moveLeft:0,hasAttacked:true,
-                icon:tmpl.ic,name:tmpl.n,
-                isHero:false,heroId:null,xp:0,level:1,kills:0,fakerUsed:false};
-            addLog(`Found a ${tmpl.n} hiding in the ruin!`,'event');
-        } else {
-            const amt=5;
-            G.res.kitty+=amt;
-            addLog(`Scavenged ${amt} catnips from the ruin!`,'event');
+    if(roll<0.45){const amt=3+Math.floor(Math.random()*6);G.res.kitty+=amt;addLog('Scavenged '+amt+' catnips from the ruin!','event')}
+    else if(roll<0.75){
+        const types=['fiter','bloker'];const type=types[Math.floor(Math.random()*types.length)];
+        const nbs=hN(q,r);let placed=false;
+        for(const nb of nbs){
+            if(G.tiles[hK(nb.q,nb.r)]&&G.tiles[hK(nb.q,nb.r)].terrain.mc>0&&!unitAt(nb.q,nb.r)){
+                const tmpl=F.kitty.units[type];const id='u'+(G.nextUid++);
+                G.units[id]={id,faction:'kitty',type,q:nb.q,r:nb.r,hp:tmpl.hp,maxHp:tmpl.hp,atk:tmpl.atk,def:tmpl.def,
+                    mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,moveLeft:0,hasAttacked:true,
+                    icon:tmpl.ic,name:tmpl.n,isHero:false,heroId:null,xp:0,level:1,kills:0,fakerUsed:false};
+                addLog('Found a '+tmpl.n+' hiding in the ruin!','event');placed=true;break;
+            }
         }
-    } else {
-        addLog('The ruin is empty. Nothing but dust.','event');
-    }
+        if(!placed){G.res.kitty+=5;addLog('Scavenged 5 catnips from the ruin!','event')}
+    } else addLog('The ruin is empty. Nothing but dust.','event');
     updateVision();updateUI();render();
 }
 
-// ================================================================
 function runFactionAI(fac){
     const g=G;
     collectIncome(fac);
@@ -1624,81 +1563,47 @@ function pickTarget(fac){
 }
 
 // ================================================================
-// INCOME & TRAINING — with cafe/forge structure bonuses
+// INCOME & TRAINING
+
+// ================================================================
+// INCOME & TRAINING
 // ================================================================
 function collectIncome(fac){
     let inc=0;
     Object.values(G.tiles).forEach(t=>{
-        if(t.isCity&&t.owner===fac){
-            let ci=t.prod;
-            const gar=unitAt(t.q,t.r);
-            if(gar&&gar.faction===fac&&gar.isHero)ci*=2;
-            inc+=ci;
-        }
-        // Cafe income: +3 catnips/turn to controlling faction
-        if(t.isCafe&&t.owner===fac){
-            inc+=3;
-        }
+        if(t.isCity&&t.owner===fac){let ci=t.prod;const gar=unitAt(t.q,t.r);if(gar&&gar.faction===fac&&gar.isHero)ci*=2;inc+=ci}
+        if(t.isCafe&&t.owner===fac) inc+=3;
     });
     G.res[fac]=(G.res[fac]||0)+inc;
-    if(fac==='kitty')addLog(`+${inc} catnips collected`,'event');
+    if(fac==='kitty')addLog('+'+inc+' catnips collected','event');
 }
-
 function getForgeDiscount(q,r){
-    // Check if any adjacent tile is a forge structure controlled by same faction
-    const unit=unitAt(q,r);
-    if(!unit) return 1.0;
     const neighbors=hN(q,r);
-    for(const n of neighbors){
-        const t=G.tiles[hK(n.q,n.r)];
-        if(t&&t.isForgeStructure&&t.owner===unit.faction) return 0.8;
-    }
+    for(const n of neighbors){const t=G.tiles[hK(n.q,n.r)];if(t&&t.isForgeStructure&&t.owner){const unit=unitAt(q,r);if(unit&&t.owner===unit.faction)return 0.8}}
     return 1.0;
 }
-
 function trainUnit(fac,type,q,r){
     const tmpl=F[fac].units[type];if(!tmpl)return false;
-    let cost=tmpl.cost;
-    // Apply forge structure discount
-    const discount=getForgeDiscount(q,r);
-    cost=Math.floor(cost*discount);
-    if((G.res[fac]||0)<cost)return false;
-    if(unitAt(q,r))return false;
-    G.res[fac]-=cost;
-    const id='u'+(G.nextUid++);
-    G.units[id]={id,faction:fac,type,q,r,
-        hp:tmpl.hp,maxHp:tmpl.hp,
-        atk:tmpl.atk+(fac==='kitty'&&tmpl.rng<=1?G.fb.mAtk:0),
-        def:tmpl.def+(fac==='kitty'?G.fb.aDef:0),
-        mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,
-        moveLeft:0,hasAttacked:true,
-        icon:tmpl.ic,name:tmpl.n,
-        isHero:false,heroId:null,xp:0,level:1,kills:0,fakerUsed:false,
-    };
-    if(fac==='kitty'){
-        let msg='Trained '+tmpl.n;
-        if(discount<1) msg+=' (20% forge discount!)';
-        addLog(msg,'event');
-    }
+    let cost=tmpl.cost;const discount=getForgeDiscount(q,r);cost=Math.floor(cost*discount);
+    if((G.res[fac]||0)<cost)return false;if(unitAt(q,r))return false;
+    G.res[fac]-=cost;const id='u'+(G.nextUid++);
+    G.units[id]={id,faction:fac,type,q,r,hp:tmpl.hp,maxHp:tmpl.hp,
+        atk:tmpl.atk+(fac==='kitty'&&tmpl.rng<=1?G.fb.mAtk:0),def:tmpl.def+(fac==='kitty'?G.fb.aDef:0),
+        mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,moveLeft:0,hasAttacked:true,
+        icon:tmpl.ic,name:tmpl.n,isHero:false,heroId:null,xp:0,level:1,kills:0,fakerUsed:false};
+    if(fac==='kitty'){let msg='Trained '+tmpl.n;if(discount<1)msg+=' (20% forge discount!)';addLog(msg,'event')}
     return true;
 }
-
 function upgradeCity(q,r){
-    const k=hK(q,r),tile=G.tiles[k];
-    if(!tile||!tile.isCity||tile.owner!=='kitty')return false;
-    const lvl=tile.cityLevel||0,cost=6+lvl*4;
-    if(G.res.kitty<cost)return false;
-    G.res.kitty-=cost;tile.cityLevel=lvl+1;tile.prod+=1;
-    addLog(`${tile.cityName} upgraded to level ${tile.cityLevel}!`,'event');return true;
+    const k=hK(q,r),tile=G.tiles[k];if(!tile||!tile.isCity||tile.owner!=='kitty')return false;
+    const lvl=tile.cityLevel||0,cost=6+lvl*4;if(G.res.kitty<cost)return false;
+    G.res.kitty-=cost;tile.cityLevel=lvl+1;tile.prod+=1;addLog(tile.cityName+' upgraded to level '+tile.cityLevel+'!','event');return true;
 }
-
 function doForge(){
-    if(G.forgeLevel>=FORGE.length)return;
-    const t=FORGE[G.forgeLevel];if(G.res.kitty<t.cost)return;
-    G.res.kitty-=t.cost;t.effect(G);addLog(`Forge: ${t.name} researched!`,'event');G.forgeLevel++;updateUI();
+    if(G.forgeLevel>=FORGE.length)return;const t=FORGE[G.forgeLevel];if(G.res.kitty<t.cost)return;
+    G.res.kitty-=t.cost;t.effect(G);addLog('Forge: '+t.name+' researched!','event');G.forgeLevel++;updateUI();
 }
 
-// ================================================================
 const AI_FACS=['ferret','meerkat','possum','crow','hyena'];
 
 function startPlayerTurn(){
@@ -1760,8 +1665,19 @@ function showModal(){if(!mq.length)return;const e=mq.shift();document.getElement
 function closeModal(){document.getElementById('mo').style.display='none';if(mq.length)setTimeout(showModal,200)}
 
 // ================================================================
-// RENDERING — Sprites, biome tinting, new terrain decorations
+// RENDERING — Updated with sprite drawing and warm terrain palette
 // ================================================================
+
+
+// ================================================================
+// RENDERING — Updated with biome tinting, new terrain, sprites
+// ================================================================
+function getBiomeTintedColor(tile){
+  const biome=tile.biome||'standard';
+  const tints=BIOME_TINTS[biome]||BIOME_TINTS.standard;
+  return tints[tile.terrain.id]||tile.terrain.c;
+}
+
 function render(){
     if(!G)return;
     const cw=C.parentElement.clientWidth,ch=C.parentElement.clientHeight;
@@ -1774,18 +1690,11 @@ function render(){
     Object.values(G.tiles).forEach(tile=>{
         const p=h2p(tile.q,tile.r),k=hK(tile.q,tile.r);
         if(!tile.explored){dHex(p.x,p.y,HEX-1,'#0a0b10','#0a0b10',.5);return}
-        let col=tile.terrain.c;
-        // Apply biome tinting
-        const biome=tile.biome||'standard';
-        if(biome!=='standard'){
-            const bFloor=BIOMES[biome].floor;
-            col=blend(col,bFloor,0.3);
-        }
+        let col=getBiomeTintedColor(tile);
         if(tile.owner)col=blend(col,F[tile.owner].col,.15);
         if(!tile.visible)col=blend(col,'#0a0b10',.55);
         dHex(p.x,p.y,HEX-1,col,'#2a2535',1);
 
-        // Territory borders
         if(tile.owner&&tile.visible){
             hN(tile.q,tile.r).forEach(n=>{
                 const nT=G.tiles[hK(n.q,n.r)];
@@ -1806,7 +1715,6 @@ function render(){
         if(hov&&tile.q===hov.q&&tile.r===hov.r)dHex(p.x,p.y,HEX,'','rgba(255,255,255,.3)',1.5);
 
         X.textAlign='center';X.textBaseline='middle';
-        // Terrain decorations
         if(tile.terrain.id==='mountain'){
             X.fillStyle='#8a7f71';
             X.beginPath();X.moveTo(p.x-6,p.y+6);X.lineTo(p.x,p.y-6);X.lineTo(p.x+6,p.y+6);X.closePath();X.fill();
@@ -1826,67 +1734,45 @@ function render(){
             X.beginPath();X.moveTo(p.x-8,p.y-2);X.quadraticCurveTo(p.x-4,p.y-5,p.x,p.y-2);X.stroke();
             X.beginPath();X.moveTo(p.x,p.y+2);X.quadraticCurveTo(p.x+4,p.y-1,p.x+8,p.y+2);X.stroke();
         }
-        // Cafe decoration: pink awning shape
+        // Cafe decoration: small awning
         if(tile.terrain.id==='cafe'){
-            X.fillStyle='#ff4d9a';
-            X.fillRect(p.x-8,p.y-6,16,4);
-            // scalloped bottom
-            for(let i=-8;i<8;i+=4){
-                X.beginPath();X.arc(p.x+i+2,p.y-2,2,0,Math.PI);X.fill();
-            }
-            X.fillStyle='#fdfbf7';X.fillRect(p.x-4,p.y,8,6);
-            X.fillStyle='#1a1330';X.fillRect(p.x+1,p.y+2,3,4);
+            X.fillStyle='#a06030';
+            X.fillRect(p.x-6,p.y-4,12,8);
+            X.fillStyle='#e8c080';
+            X.beginPath();X.moveTo(p.x-8,p.y-4);X.lineTo(p.x+8,p.y-4);X.lineTo(p.x+6,p.y-8);X.lineTo(p.x-6,p.y-8);X.closePath();X.fill();
+            X.fillStyle='#fff';X.font='7px Arial';X.fillText('☕',p.x,p.y+2);
         }
-        // Forge decoration: anvil/hammer
+        // Forge structure decoration: anvil
         if(tile.terrain.id==='forge_t'){
-            X.fillStyle='#1a1330';
-            X.fillRect(p.x-4,p.y+1,8,2);
-            X.fillRect(p.x-5,p.y+3,10,1.5);
-            // chimney
-            X.fillRect(p.x+3,p.y-6,2,8);
-            // smoke puff
-            X.fillStyle='#ff4d9a';X.globalAlpha=0.6;
-            X.beginPath();X.arc(p.x+4,p.y-8,2.5,0,Math.PI*2);X.fill();
-            X.globalAlpha=1;
+            X.fillStyle='#555';
+            X.fillRect(p.x-5,p.y-2,10,6);
+            X.fillRect(p.x-3,p.y-6,6,4);
+            X.fillStyle='#ffa500';X.font='6px Arial';X.fillText('⚒',p.x,p.y+8);
         }
-        // Ordnance decoration: stacked circles
+        // Ordnance pile decoration
         if(tile.terrain.id==='ordnance'){
-            X.fillStyle='#594f45';
-            X.beginPath();X.arc(p.x-4,p.y+2,4,0,Math.PI*2);X.fill();
-            X.beginPath();X.arc(p.x+4,p.y+2,4,0,Math.PI*2);X.fill();
-            X.beginPath();X.arc(p.x,p.y-3,3.5,0,Math.PI*2);X.fill();
-            // fuse
-            X.strokeStyle='#1a1330';X.lineWidth=1;
-            X.beginPath();X.moveTo(p.x,p.y-6.5);X.quadraticCurveTo(p.x+3,p.y-9,p.x+1,p.y-11);X.stroke();
+            X.fillStyle='#8a3030';
+            X.beginPath();X.arc(p.x-3,p.y+2,3,0,Math.PI*2);X.fill();
+            X.beginPath();X.arc(p.x+3,p.y+2,3,0,Math.PI*2);X.fill();
+            X.beginPath();X.arc(p.x,p.y-2,3,0,Math.PI*2);X.fill();
+            X.fillStyle='#ff6666';X.font='5px Arial';X.fillText('💣',p.x,p.y-7);
         }
-        // Ruin decoration: broken column
+        // Ruin decoration
         if(tile.terrain.id==='ruin'){
-            X.fillStyle='#d4ccc0';
-            X.fillRect(p.x-3,p.y-4,6,10);
-            // broken top
-            X.beginPath();X.moveTo(p.x-3,p.y-4);X.lineTo(p.x-1,p.y-7);X.lineTo(p.x+2,p.y-5);X.lineTo(p.x+3,p.y-4);X.closePath();X.fill();
-            // crack
-            X.strokeStyle='#8a7f71';X.lineWidth=0.8;
-            X.beginPath();X.moveTo(p.x-1,p.y-3);X.lineTo(p.x+1,p.y+2);X.stroke();
-            if(tile.ruinUsed){
-                X.fillStyle='rgba(0,0,0,0.3)';X.font='6px Arial';X.fillText('used',p.x,p.y+HEX*.5);
-            }
+            X.fillStyle='#8a8070';
+            X.fillRect(p.x-6,p.y-3,3,8);
+            X.fillRect(p.x+3,p.y-1,3,6);
+            X.fillRect(p.x-2,p.y+1,4,4);
+            if(tile.ruinUsed){X.fillStyle='rgba(0,0,0,0.3)';X.font='7px Arial';X.fillText('✗',p.x,p.y-7)}
+            else{X.fillStyle='#ddd';X.font='6px Arial';X.fillText('?',p.x,p.y-7)}
         }
-        // Bridge decoration: planks over water
+        // Bridge decoration
         if(tile.terrain.id==='bridge'){
-            // water underneath
-            X.strokeStyle='#8fb8d4';X.lineWidth=1;
-            X.beginPath();X.moveTo(p.x-8,p.y+4);X.quadraticCurveTo(p.x,p.y+1,p.x+8,p.y+4);X.stroke();
-            // planks
-            X.fillStyle='#c9a978';X.fillRect(p.x-10,p.y-3,20,6);
-            X.strokeStyle='#1a1330';X.lineWidth=0.8;
-            for(let i=-8;i<=8;i+=4){
-                X.beginPath();X.moveTo(p.x+i,p.y-3);X.lineTo(p.x+i,p.y+3);X.stroke();
-            }
-            // posts
-            X.fillStyle='#ff4d9a';
-            X.fillRect(p.x-11,p.y-5,2,10);
-            X.fillRect(p.x+9,p.y-5,2,10);
+            X.fillStyle='#7a6040';
+            X.fillRect(p.x-8,p.y-2,16,4);
+            X.strokeStyle='#5a4030';X.lineWidth=1;
+            X.strokeRect(p.x-6,p.y-2,4,4);
+            X.strokeRect(p.x+2,p.y-2,4,4);
         }
 
         if(tile.isCity){
@@ -1902,7 +1788,6 @@ function render(){
         if(imp){X.fillStyle='#ddd';X.font='9px Arial';X.fillText(IMP[imp].icon,p.x+HEX*.3,p.y+HEX*.3)}
     });
 
-    // Units
     Object.values(G.units).forEach(unit=>{
         const tile=G.tiles[hK(unit.q,unit.r)];
         if(!tile||(!tile.visible&&unit.faction!=='kitty'))return;
@@ -1919,11 +1804,10 @@ function render(){
             X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);
             X.fillStyle=unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fac.dk):fac.dk;
             X.fill();X.strokeStyle=fac.col;X.lineWidth=unit.isHero?2.5:1.5;X.stroke();
-            X.fillStyle='#fff';X.font=`${unit.isHero?13:11}px Arial`;X.textAlign='center';X.textBaseline='middle';
+            X.fillStyle='#fff';X.font=(unit.isHero?13:11)+'px Arial';X.textAlign='center';X.textBaseline='middle';
             X.fillText(unit.icon,p.x,p.y);
         }
 
-        // HP bar
         const pct=unit.hp/unit.maxHp,bw=sz*1.3,bx=p.x-bw/2,by=p.y+sz+2;
         X.fillStyle='#222';X.fillRect(bx,by,bw,2);
         X.fillStyle=pct>.5?'#0e6':pct>.25?'#fa0':'#f14';X.fillRect(bx,by,bw*pct,2);
@@ -1939,7 +1823,7 @@ function dHex(cx,cy,sz,fill,stroke,lw){
     X.beginPath();for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-30),x=cx+sz*Math.cos(a),y=cy+sz*Math.sin(a);i===0?X.moveTo(x,y):X.lineTo(x,y)}X.closePath();
     if(fill){X.fillStyle=fill;X.fill()}if(stroke){X.strokeStyle=stroke;X.lineWidth=lw||1;X.stroke()}
 }
-function blend(h1,h2,r){const c1=hRGB(h1),c2=hRGB(h2);return`rgb(${Math.round(c1.r*(1-r)+c2.r*r)},${Math.round(c1.g*(1-r)+c2.g*r)},${Math.round(c1.b*(1-r)+c2.b*r)})`}
+function blend(h1,h2,r){const c1=hRGB(h1),c2=hRGB(h2);return'rgb('+Math.round(c1.r*(1-r)+c2.r*r)+','+Math.round(c1.g*(1-r)+c2.g*r)+','+Math.round(c1.b*(1-r)+c2.b*r)+')'}
 function hRGB(h){if(h.startsWith('rgb')){const m=h.match(/(\d+)/g);return{r:+m[0],g:+m[1],b:+m[2]}}h=h.replace('#','');return{r:parseInt(h.substr(0,2),16),g:parseInt(h.substr(2,2),16),b:parseInt(h.substr(4,2),16)}}
 
 function renderMM(){
@@ -1962,118 +1846,111 @@ function renderMM(){
 // HERO EXPRESSION CONTEXT
 // ================================================================
 function getHeroExpression(unit){
-    if(!unit||!unit.isHero) return 'neutral';
-    const hid=unit.heroId;
-    if(unit.hp<=0) return 'ko';
-    // Shitty defaults smug
-    if(hid==='shitty') return 'smug';
-    // Skitty always scared unless ko
-    if(hid==='skitty') return 'scared';
-    // Low HP -> determined
-    if(unit.hp<=unit.maxHp*0.4) return 'determined';
-    // Gritty near enemies -> angry
-    if(hid==='gritty'){
-        const nearEnemy=Object.values(G.units).some(e=>e.faction!=='kitty'&&hD({q:unit.q,r:unit.r},{q:e.q,r:e.r})<=2);
-        if(nearEnemy) return 'angry';
-    }
+    if(!unit||!unit.isHero)return 'neutral';
+    const pct=unit.hp/unit.maxHp;
+    if(unit.hp<=0)return 'ko';
+    if(pct<=0.25)return 'scared';
+    if(unit.hasAttacked&&unit.kills>0)return 'smug';
+    if(unit.hasAttacked)return 'determined';
+    if(pct<=0.5)return 'angry';
     return 'neutral';
 }
 
+
+function emblemImg(fac,size){
+    size=size||20;
+    const sp=SPRITES['emblem.'+fac];
+    if(sp)return '<img class="emblem-inline" src="'+sp.src+'" width="'+size+'" height="'+size+'">';
+    return '';
+}
+function portraitImg(heroId,expression,size){
+    size=size||48;
+    expression=expression||'neutral';
+    const sp=SPRITES['portrait.'+heroId+'.'+expression];
+    if(sp)return '<img class="hero-portrait" src="'+sp.src+'" width="'+size+'" height="'+size+'">';
+    return '';
+}
+
+
 // ================================================================
-// UI — with emblems, portraits, scavenge, warm aesthetic
+// UI — Updated with emblem + portrait integration
 // ================================================================
 function updateUI(){
     document.getElementById('tn').textContent=G.turn;
     const peaceTurns=PEACE_TURNS[difficulty]||0;
     const peaceLeft=peaceTurns-G.turn;
-    document.getElementById('tp').textContent=peaceLeft>0?`Your Turn (Peace: ${peaceLeft} left)`:'Your Turn';
+    document.getElementById('tp').textContent=peaceLeft>0?'Your Turn (Peace: '+peaceLeft+' left)':'Your Turn';
     document.getElementById('ac').textContent=G.res.kitty;
     const mc=Object.values(G.tiles).filter(t=>t.isCity&&t.owner==='kitty').length;
-    document.getElementById('cc').textContent=`Cities: ${mc}`;
-    document.getElementById('capcount').textContent=`Capitals: ${G.capturedCaps}/5`;
+    document.getElementById('cc').textContent='Cities: '+mc;
+    document.getElementById('capcount').textContent='Capitals: '+G.capturedCaps+'/5';
     updateSel();updateTrain();updateForgeP();updateHeroP();updateLog();
-}
-
-function emblemImg(fac,sz){
-    sz=sz||20;
-    const sp=SPRITES['emblem.'+fac];
-    if(!sp||!spritesReady) return '';
-    // We can't use the Image object in innerHTML, so use the SVG data URL
-    const svg=EMBLEM_BUILDERS[fac]();
-    const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
-    return `<img src="${url}" class="emblem-inline" width="${sz}" height="${sz}" style="vertical-align:middle"/>`;
-}
-
-function portraitImg(heroId,expression,sz){
-    sz=sz||48;
-    const svg=buildPortraitSVG(heroId,expression);
-    if(!svg) return '';
-    const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
-    return `<img src="${url}" class="hero-portrait" width="${sz}" height="${sz}" style="vertical-align:middle"/>`;
 }
 
 function updateSel(){
     const p=document.getElementById('selp');
     if(!sel){p.innerHTML='<h3>Selection</h3><p style="font-size:11px;color:#4a3e6b">Click a hex to inspect</p>';document.getElementById('actp').style.display='none';return}
     const k=hK(sel.q,sel.r),tile=G.tiles[k];if(!tile)return;
-    let h=`<h3>${tile.terrain.name}${tile.isCity?' \u2014 '+(tile.cityName||'City'):''}</h3>`;
+    let h='<h3>'+tile.terrain.name+(tile.isCity?' \u2014 '+(tile.cityName||'City'):'')+'</h3>';
     if(tile.isCity){
         const ow=tile.owner?F[tile.owner].name:'Neutral';
-        const facKey=tile.owner||'';
         const gar=unitAt(tile.q,tile.r),hg=gar&&gar.isHero&&gar.faction===tile.owner;
         const ei=hg?tile.prod*2:tile.prod,cd=getCityDef(tile);
-        h+=`<div class="sr"><span class="l">Owner</span><span class="v" style="color:${tile.owner?F[tile.owner].col:'#888'}">${facKey?emblemImg(facKey,16):''}${ow}</span></div>`;
-        h+=`<div class="sr"><span class="l">Level</span><span class="v">${tile.cityLevel||0}</span></div>`;
-        h+=`<div class="sr"><span class="l">Income</span><span class="v">${ei}/turn${hg?' (2x)':''}</span></div>`;
-        h+=`<div class="sr"><span class="l">Defense</span><span class="v">+${cd}${hg?' (2x)':''}</span></div>`;
+        h+='<div class="sr"><span class="l">Owner</span><span class="v" style="color:'+(tile.owner?F[tile.owner].col:'#888')+'">'+(tile.owner?emblemImg(tile.owner,16):'')+ow+'</span></div>';
+        h+='<div class="sr"><span class="l">Level</span><span class="v">'+(tile.cityLevel||0)+'</span></div>';
+        h+='<div class="sr"><span class="l">Income</span><span class="v">'+ei+'/turn'+(hg?' (2x)':'')+'</span></div>';
+        h+='<div class="sr"><span class="l">Defense</span><span class="v">+'+cd+(hg?' (2x)':'')+'</span></div>';
     } else {
-        h+=`<div class="sr"><span class="l">Defense</span><span class="v">+${tile.terrain.def}</span></div>`;
-        if(tile.isCafe) h+=`<div class="sr"><span class="l">Bonus</span><span class="v" style="color:#ff4d9a">+3 catnips/turn</span></div>`;
-        if(tile.isForgeStructure) h+=`<div class="sr"><span class="l">Bonus</span><span class="v" style="color:#7c4dff">-20% recruit cost</span></div>`;
-        if(tile.isOrdnance) h+=`<div class="sr"><span class="l">Effect</span><span class="v" style="color:#d23240">Explodes on capture</span></div>`;
-        if(tile.isRuin) h+=`<div class="sr"><span class="l">Status</span><span class="v">${tile.ruinUsed?'Searched':'Scavengeable'}</span></div>`;
+        h+='<div class="sr"><span class="l">Defense</span><span class="v">+'+tile.terrain.def+'</span></div>';
     }
-    h+=`<div class="sr"><span class="l">Move cost</span><span class="v">${tile.terrain.mc<0?'Impass.':tile.terrain.mc}</span></div>`;
+    if(tile.isCafe)h+='<div class="sr"><span class="l">Bonus</span><span class="v" style="color:#a06030">+3 catnips/turn</span></div>';
+    if(tile.isForgeStructure)h+='<div class="sr"><span class="l">Bonus</span><span class="v" style="color:#7c4dff">-20% recruit cost</span></div>';
+    if(tile.isOrdnance)h+='<div class="sr"><span class="l">Effect</span><span class="v" style="color:#c45050">3 dmg on capture</span></div>';
+    if(tile.isRuin)h+='<div class="sr"><span class="l">Status</span><span class="v">'+(tile.ruinUsed?'Searched':'Scavengeable')+'</span></div>';
+    if(tile.isBridge)h+='<div class="sr"><span class="l">Info</span><span class="v">Crossable water</span></div>';
+    h+='<div class="sr"><span class="l">Move cost</span><span class="v">'+(tile.terrain.mc<0?'Impass.':tile.terrain.mc)+'</span></div>';
 
-    const imp=G.improvements[k];if(imp)h+=`<div class="sr"><span class="l">Improve.</span><span class="v">${IMP[imp].icon} ${IMP[imp].name}</span></div>`;
+    const imp=G.improvements[k];if(imp)h+='<div class="sr"><span class="l">Improve.</span><span class="v">'+IMP[imp].icon+' '+IMP[imp].name+'</span></div>';
 
     const unit=unitAt(sel.q,sel.r);
     if(unit&&(unit.faction==='kitty'||tile.visible)){
         const fc=F[unit.faction];
-        h+=`<div style="margin-top:5px;border-top:1px solid rgba(26,19,48,0.15);padding-top:5px">`;
-        // Show portrait for hero
+        h+='<div style="margin-top:5px;border-top:1px solid rgba(26,19,48,0.15);padding-top:5px">';
         if(unit.isHero&&unit.faction==='kitty'){
             const expr=getHeroExpression(unit);
-            h+=`<div style="text-align:center;margin-bottom:4px">${portraitImg(unit.heroId,expr,56)}</div>`;
+            h+=portraitImg(unit.heroId,expr,48);
         }
-        h+=`<div style="color:${unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fc.col):fc.col};font-weight:bold;font-size:12px">${emblemImg(unit.faction,18)} ${unit.icon} ${unit.name}${unit.level>1?' \u2605'+unit.level:''}</div>`;
-        h+=`<div style="font-size:9px;color:#4a3e6b">${fc.name}${unit.isHero?' \u2014 Hero':''}</div>`;
-        if(unit.isHero&&HEROES[unit.heroId])h+=`<div style="font-size:9px;color:#ff9800;margin:1px 0">${HEROES[unit.heroId].ability}: ${HEROES[unit.heroId].abilityDesc}</div>`;
-        h+=`<div class="sr"><span class="l">HP</span><span class="v">${unit.hp}/${unit.maxHp}</span></div>`;
-        h+=`<div class="sr"><span class="l">ATK</span><span class="v">${unit.atk}${unit._rally?' (+1)':''}</span></div>`;
-        h+=`<div class="sr"><span class="l">DEF</span><span class="v">${unit.def}</span></div>`;
-        h+=`<div class="sr"><span class="l">Move</span><span class="v">${unit.moveLeft}/${unit.mv}</span></div>`;
-        h+=`<div class="sr"><span class="l">Range</span><span class="v">${unit.rng}</span></div>`;
-        h+=`<div class="sr"><span class="l">Kills</span><span class="v">${unit.kills}</span></div></div>`;
+        h+='<div style="color:'+(unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fc.col):fc.col)+';font-weight:bold;font-size:12px">'+emblemImg(unit.faction,16)+unit.icon+' '+unit.name+(unit.level>1?' \u2605'+unit.level:'')+'</div>';
+        h+='<div style="font-size:9px;color:#4a3e6b">'+fc.name+(unit.isHero?' \u2014 Hero':'')+'</div>';
+        if(unit.isHero&&HEROES[unit.heroId])h+='<div style="font-size:9px;color:#ffab00;margin:1px 0">'+HEROES[unit.heroId].ability+': '+HEROES[unit.heroId].abilityDesc+'</div>';
+        h+='<div class="sr"><span class="l">HP</span><span class="v">'+unit.hp+'/'+unit.maxHp+'</span></div>';
+        h+='<div class="sr"><span class="l">ATK</span><span class="v">'+unit.atk+(unit._rally?' (+1)':'')+'</span></div>';
+        h+='<div class="sr"><span class="l">DEF</span><span class="v">'+unit.def+'</span></div>';
+        h+='<div class="sr"><span class="l">Move</span><span class="v">'+unit.moveLeft+'/'+unit.mv+'</span></div>';
+        h+='<div class="sr"><span class="l">Range</span><span class="v">'+unit.rng+'</span></div>';
+        h+='<div class="sr"><span class="l">Kills</span><span class="v">'+unit.kills+'</span></div></div>';
     }
 
     if(tile.isCity&&tile.owner==='kitty'&&tile.visible){
         const lvl=tile.cityLevel||0,cost=6+lvl*4;
-        h+=`<div style="margin-top:4px;border-top:1px solid rgba(26,19,48,0.15);padding-top:4px">`;
-        h+=`<button class="ba bf" style="font-size:10px;padding:4px" ${G.res.kitty>=cost?'':'disabled'} onclick="upgradeCity(${sel.q},${sel.r});updateUI();render()">\u2b06 Upgrade \u2014 ${cost} catnips<div style="font-size:9px;color:#4a3e6b">+1 def, +1 income. Lvl ${lvl}</div></button></div>`;
+        h+='<div style="margin-top:4px;border-top:1px solid rgba(26,19,48,0.15);padding-top:4px">';
+        h+='<button class="ba bf" style="font-size:10px;padding:4px" '+(G.res.kitty>=cost?'':'disabled')+' onclick="upgradeCity('+sel.q+','+sel.r+');updateUI();render()">\u2b06 Upgrade \u2014 '+cost+' catnips<div style="font-size:9px;color:#4a3e6b">+1 def, +1 income. Lvl '+lvl+'</div></button></div>';
     }
 
     // Scavenge ruin button
-    if(tile.isRuin&&!tile.ruinUsed&&unit&&unit.faction==='kitty'&&unit.moveLeft>=unit.maxMv){
-        h+=`<div style="margin-top:4px"><button class="ba" style="font-size:10px;padding:4px;border-color:#ff9800;color:#ff9800" onclick="scavengeRuin(${sel.q},${sel.r})">\ud83d\udd0d Scavenge Ruin (costs full move)</button></div>`;
+    if(tile.isRuin&&!tile.ruinUsed){
+        const ru=unitAt(sel.q,sel.r);
+        if(ru&&ru.faction==='kitty'&&ru.moveLeft>=ru.maxMv){
+            h+='<div style="margin-top:4px"><button class="ba" onclick="scavengeRuin('+sel.q+','+sel.r+')">\ud83d\udd0d Scavenge Ruin (full move)</button></div>';
+        }
     }
 
-    if(tile.owner==='kitty'&&!tile.isCity&&!tile.isCafe&&!tile.isForgeStructure&&!tile.isOrdnance&&!tile.isRuin&&!tile.isBridge&&!imp&&tile.terrain.mc>0&&tile.visible){
-        h+=`<div style="margin-top:4px;border-top:1px solid rgba(26,19,48,0.15);padding-top:4px"><div style="font-size:10px;color:#4a3e6b;margin-bottom:2px">Build:</div>`;
+    if(tile.owner==='kitty'&&!tile.isCity&&!imp&&tile.terrain.mc>0&&tile.visible&&!tile.isCafe&&!tile.isForgeStructure&&!tile.isOrdnance&&!tile.isRuin&&!tile.isBridge){
+        h+='<div style="margin-top:4px;border-top:1px solid rgba(26,19,48,0.15);padding-top:4px"><div style="font-size:10px;color:#4a3e6b;margin-bottom:2px">Build:</div>';
         Object.entries(IMP).forEach(([t,d])=>{
-            h+=`<button class="ba bt" style="font-size:10px;padding:3px" ${G.res.kitty>=d.cost?'':'disabled'} onclick="buildImp('${t}',${sel.q},${sel.r});updateUI();render()">${d.icon} ${d.name} (${d.cost})</button>`;
+            h+='<button class="ba bt" style="font-size:10px;padding:3px" '+(G.res.kitty>=d.cost?'':'disabled')+' onclick="buildImp(\''+t+'\','+sel.q+','+sel.r+');updateUI();render()">'+d.icon+' '+d.name+' ('+d.cost+')</button>';
         });
-        h+=`</div>`;
+        h+='</div>';
     }
     p.innerHTML=h;
 
@@ -2092,26 +1969,25 @@ function updateTrain(){
     const k=hK(sel.q,sel.r),tile=G.tiles[k];
     if(!tile||!tile.isCity||tile.owner!=='kitty'||unitAt(sel.q,sel.r)){p.style.display='none';return}
     p.style.display='block';let h='<h3>Train Unit</h3>';
-    // Check for forge discount
     const discount=getForgeDiscount(sel.q,sel.r);
-    if(discount<1) h+='<div style="font-size:9px;color:#7c4dff;margin-bottom:3px">Forge nearby: 20% discount!</div>';
     Object.entries(F.kitty.units).forEach(([type,tmpl])=>{
         if(!G.unlocked[type])return;
-        let cost=Math.floor(tmpl.cost*discount);
-        h+=`<button class="ba bt" ${G.res.kitty>=cost?'':'disabled'} onclick="doTrain('${type}',${sel.q},${sel.r})">${tmpl.ic} ${tmpl.n} \u2014 ${cost} catnips<div style="font-size:9px;color:#4a3e6b;margin-top:1px">${tmpl.d}</div></button>`;
+        const cost=Math.floor(tmpl.cost*discount);
+        const discLabel=discount<1?' (forge -20%)':'';
+        h+='<button class="ba bt" '+(G.res.kitty>=cost?'':'disabled')+' onclick="doTrain(\''+type+'\','+sel.q+','+sel.r+')">'+tmpl.ic+' '+tmpl.n+' \u2014 '+cost+' catnips'+discLabel+'<div style="font-size:9px;color:#4a3e6b;margin-top:1px">'+tmpl.d+'</div></button>';
     });
     p.innerHTML=h;
 }
 
 function updateForgeP(){
     const p=document.getElementById('frgp');if(!forgeOpen){p.style.display='none';return}
-    p.style.display='block';let h="<h3>Smitty's Forge</h3>";
+    p.style.display='block';let h="<h3>Smitty\'s Forge</h3>";
     FORGE.forEach((t,i)=>{
-        if(i<G.forgeLevel)h+=`<div style="font-size:10px;color:#4a7a5c;margin:3px 0">\u2713 ${t.name} \u2014 ${t.desc}</div>`;
-        else if(i===G.forgeLevel)h+=`<button class="ba bf" ${G.res.kitty>=t.cost?'':'disabled'} onclick="doForge();updateUI();render()">${t.name} \u2014 ${t.cost} catnips<div style="font-size:9px;color:#4a3e6b;margin-top:1px">${t.desc}</div></button>`;
-        else h+=`<div style="font-size:10px;color:#8a7f71;margin:3px 0">\ud83d\udd12 ${t.name}</div>`;
+        if(i<G.forgeLevel)h+='<div style="font-size:10px;color:#4a7a5c;margin:3px 0">\u2713 '+t.name+' \u2014 '+t.desc+'</div>';
+        else if(i===G.forgeLevel)h+='<button class="ba bf" '+(G.res.kitty>=t.cost?'':'disabled')+' onclick="doForge();updateUI();render()">'+t.name+' \u2014 '+t.cost+' catnips<div style="font-size:9px;color:#4a3e6b;margin-top:1px">'+t.desc+'</div></button>';
+        else h+='<div style="font-size:10px;color:#4a3e6b;margin:3px 0">\ud83d\udd12 '+t.name+'</div>';
     });
-    if(G.forgeLevel>=FORGE.length)h+=`<div style="font-size:10px;color:#ff4d9a;margin-top:4px">Forge complete.</div>`;
+    if(G.forgeLevel>=FORGE.length)h+='<div style="font-size:10px;color:#ff4d9a;margin-top:4px">Forge complete.</div>';
     p.innerHTML=h;
 }
 
@@ -2125,29 +2001,21 @@ function updateHeroP(){
         const hero=HEROES[hid];
         if(unit){
             const expr=getHeroExpression(unit);
-            h+=`<div style="font-size:10px;margin:2px 0;cursor:pointer;color:${hero.color};display:flex;align-items:center;gap:3px" onclick="centerOn(${unit.q},${unit.r})">${portraitImg(hid,expr,22)} ${hero.name} ${unit.hp}/${unit.maxHp}${unit.level>1?' \u2605'+unit.level:''}</div>`;
-        } else {
-            h+=`<div style="font-size:10px;margin:1px 0;color:#8a7f71;text-decoration:line-through">${hero.ic} ${hero.name} \u2014 fallen</div>`;
-        }
+            h+='<div style="font-size:10px;margin:2px 0;cursor:pointer;color:'+hero.color+'" onclick="centerOn('+unit.q+','+unit.r+')">'+portraitImg(hid,expr,24)+' '+hero.name+' '+unit.hp+'/'+unit.maxHp+(unit.level>1?' \u2605'+unit.level:'')+'</div>';
+        } else h+='<div style="font-size:10px;margin:2px 0;color:#8a7a6a;text-decoration:line-through">'+portraitImg(hid,'ko',24)+' '+hero.name+' \u2014 fallen</div>';
     });
     p.innerHTML=h;
 }
 
-function updateLog(){document.getElementById('loge').innerHTML=G.log.slice(0,18).map(l=>`<div class="le ${l.type}">${l.text}</div>`).join('')}
+function updateLog(){document.getElementById('loge').innerHTML=G.log.slice(0,18).map(l=>'<div class="le '+l.type+'">'+l.text+'</div>').join('')}
 
 function toggleForge(){forgeOpen=!forgeOpen;updateUI()}
 function toggleFog(){fogOn=!fogOn;document.getElementById('fogb').textContent=fogOn?'Fog: ON':'Fog: OFF';if(!fogOn)Object.values(G.tiles).forEach(t=>{t.visible=true;t.explored=true});else updateVision();render()}
-function toggleAI(){aiMode=aiMode==='aggressive'?'defensive':'aggressive';document.getElementById('aib').textContent=`AI: ${aiMode==='aggressive'?'Aggressive':'Defensive'}`}
-function toggleDifficulty(){const order=['easy','normal','hard','crazy'];const i=(order.indexOf(difficulty)+1)%order.length;difficulty=order[i];const labels={easy:'Easy',normal:'Normal',hard:'Hard',crazy:'Crazy'};document.getElementById('difb').textContent=`Difficulty: ${labels[difficulty]}`}
+function toggleAI(){aiMode=aiMode==='aggressive'?'defensive':'aggressive';document.getElementById('aib').textContent='AI: '+(aiMode==='aggressive'?'Aggressive':'Defensive')}
+function toggleDifficulty(){const order=['easy','normal','hard','crazy'];const i=(order.indexOf(difficulty)+1)%order.length;difficulty=order[i];const labels={easy:'Easy',normal:'Normal',hard:'Hard',crazy:'Crazy'};document.getElementById('difb').textContent='Difficulty: '+labels[difficulty]}
 function doTrain(type,q,r){if(trainUnit('kitty',type,q,r)){updateVision();updateUI();render()}}
 function centerOn(q,r){const p=h2p(q,r);cam.x=-p.x*cam.z;cam.y=-p.y*cam.z;sel={q,r};selU=unitAt(q,r);if(selU&&selU.faction==='kitty'){mvHL=Object.values(getReach(selU));atHL=getAtk(selU).map(u=>({q:u.q,r:u.r}))}updateUI();render()}
 
-// ================================================================
-// INPUT
-// ================================================================
-// ================================================================
-// INPUT
-// ================================================================
 function setupInput(){
     C.addEventListener('mousedown',e=>{drag=false;dragS={x:e.clientX,y:e.clientY};camS={x:cam.x,y:cam.y}});
     C.addEventListener('mousemove',e=>{
@@ -2188,24 +2056,38 @@ function handleClick(hex){
     selU=null;sel=hex;mvHL=[];atHL=[];updateUI();render();
 }
 
+// ================================================================
+// START — preloads sprites before first render
+// ================================================================
+
 
 // ================================================================
-// START — preloads sprites, populates title screen
+// TITLE SCREEN EMBLEM POPULATION
 // ================================================================
 function populateTitleEmblems(){
     const container=document.getElementById('tsEmblems');
-    if(!container) return;
+    if(!container)return;
     const facs=['kitty','ferret','meerkat','possum','crow','hyena'];
     const names=['Kitty City','Ferret City','Meerkat Burrows','Possum Town',"Crow's Nest",'Hyena Heights'];
-    let html='';
     facs.forEach((fac,i)=>{
         const svg=EMBLEM_BUILDERS[fac]();
-        const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
-        html+=`<div class="ts-emblem-cell"><img src="${url}" width="48" height="48"/><div class="en">${names[i]}</div></div>`;
+        const cell=document.createElement('div');
+        cell.className='ts-emblem-cell';
+        const img=document.createElement('img');
+        img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+        img.width=48;img.height=48;
+        const label=document.createElement('div');
+        label.className='en';
+        label.textContent=names[i];
+        cell.appendChild(img);
+        cell.appendChild(label);
+        container.appendChild(cell);
     });
-    container.innerHTML=html;
 }
 
+// ================================================================
+// START — preloads sprites before first render
+// ================================================================
 async function startGame(){
     document.getElementById('ts').style.display='none';
     document.getElementById('top-bar').style.display='flex';
@@ -2222,8 +2104,8 @@ async function startGame(){
     window.addEventListener('resize',render);
 }
 
-// Populate title screen on load
-document.addEventListener('DOMContentLoaded',populateTitleEmblems);
+document.addEventListener('DOMContentLoaded',()=>{populateTitleEmblems()});
+
 
 </script>
 </body>
