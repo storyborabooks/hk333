@@ -1360,7 +1360,20 @@ function checkCap(unit){
         return;
     }
     if(!tile.isCity||tile.owner===unit.faction)return;
-    const prev=tile.owner;tile.owner=unit.faction;
+    const prev=tile.owner;
+    // Garrison combat: enemy cities deal damage to attacking unit
+    if(prev){
+        const garDmg=2+(tile.cityLevel||0)*2;
+        unit.hp-=garDmg;
+        addLog(unit.name+' takes '+garDmg+' garrison damage from '+(tile.cityName||'City')+'!','combat');
+        if(unit.hp<=0){
+            addLog(unit.name+' destroyed by '+tile.cityName+'\'s garrison!','combat');
+            if(unit.isHero)G.flags.heroKilled=true;
+            delete G.units[unit.id];
+            return;
+        }
+    }
+    tile.owner=unit.faction;
     addLog(F[unit.faction].name+' captures '+(tile.cityName||'Village')+'!','event');
     if(!prev&&unit.faction==='kitty')G.flags.firstVillage=true;
     if(tile.isCapital&&prev&&prev!==unit.faction){
@@ -1899,6 +1912,10 @@ function updateSel(){
         h+='<div class="sr"><span class="l">Level</span><span class="v">'+(tile.cityLevel||0)+'</span></div>';
         h+='<div class="sr"><span class="l">Income</span><span class="v">'+ei+'/turn'+(hg?' (2x)':'')+'</span></div>';
         h+='<div class="sr"><span class="l">Defense</span><span class="v">+'+cd+(hg?' (2x)':'')+'</span></div>';
+        if(tile.owner&&tile.owner!=='kitty'){
+            const garDmg=2+(tile.cityLevel||0)*2;
+            h+='<div class="sr"><span class="l">Garrison</span><span class="v" style="color:#c45050">'+garDmg+' dmg on capture</span></div>';
+        }
     } else {
         h+='<div class="sr"><span class="l">Defense</span><span class="v">+'+tile.terrain.def+'</span></div>';
     }
