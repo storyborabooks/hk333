@@ -4,60 +4,82 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hitty Kitty: Kitty Conquest</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; user-select:none; }
-body { background:#1a1a2e; font-family:'Segoe UI',Arial,sans-serif; color:#ddd; overflow:hidden; height:100vh; }
-#top-bar { width:100%; height:42px; background:#16213e; border-bottom:2px solid #e94560; display:none; align-items:center; justify-content:space-between; padding:0 12px; z-index:10; flex-wrap:wrap; }
+body { background:#1a1330; font-family:'Space Grotesk','Segoe UI',Arial,sans-serif; color:#1a1330; overflow:hidden; height:100vh; }
+#top-bar { width:100%; height:42px; background:#1a1330; border-bottom:2px solid #ff4d9a; display:none; align-items:center; justify-content:space-between; padding:0 12px; z-index:10; flex-wrap:wrap; }
 .tb-s { display:flex; align-items:center; gap:10px; }
-.tb-t { font-size:16px; font-weight:bold; color:#ff69b4; }
-.tb-i { font-size:13px; color:#aab; }
-.tb-r { font-size:13px; color:#ffab00; font-weight:bold; }
-.tb-b { padding:3px 10px; font-size:11px; font-weight:bold; border:1px solid #e94560; background:transparent; color:#e94560; border-radius:3px; cursor:pointer; white-space:nowrap; }
-.tb-b:hover { background:#e94560; color:#fff; }
+.tb-t { font-size:16px; font-weight:bold; color:#ff4d9a; }
+.tb-i { font-size:13px; color:#f2eadb; }
+.tb-r { font-size:13px; color:#ffd23f; font-weight:bold; }
+.tb-b { padding:3px 10px; font-size:11px; font-weight:bold; border:1px solid #ff4d9a; background:transparent; color:#fdfbf7; border-radius:4px; cursor:pointer; white-space:nowrap; }
+.tb-b:hover { background:#ff4d9a; color:#1a1330; }
 #main-area { display:none; width:100%; height:calc(100vh - 42px); position:relative; }
 #canvas-wrap { position:absolute; top:0; left:0; right:240px; bottom:0; }
 canvas#gc { display:block; cursor:pointer; }
-#sp { position:absolute; top:0; right:0; width:240px; height:100%; background:#16213e; border-left:1px solid #333; display:flex; flex-direction:column; overflow:hidden; }
+#sp { position:absolute; top:0; right:0; width:240px; height:100%; background:#f2eadb; border-left:1.5px solid #1a1330; display:flex; flex-direction:column; overflow:hidden; }
 #ps { flex:1; overflow-y:auto; padding:6px; display:flex; flex-direction:column; gap:6px; }
-.pb { background:#1a1a2e; border:1px solid #2a2a3e; border-radius:4px; padding:6px; }
-.pb h3 { font-size:10px; color:#ff69b4; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+.pb { background:#fdfbf7; border:1.5px solid rgba(26,19,48,0.15); border-radius:8px; padding:6px; }
+.pb h3 { font-size:10px; color:#ff4d9a; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; font-weight:700; }
 .sr { display:flex; justify-content:space-between; font-size:11px; margin:1px 0; }
-.sr .l { color:#667; } .sr .v { color:#ddd; font-weight:bold; }
-.ba { display:block; width:100%; padding:6px; margin:2px 0; border:1px solid #e94560; background:#1a1a2e; color:#e94560; font-size:11px; font-weight:bold; border-radius:3px; cursor:pointer; text-align:center; }
-.ba:hover { background:#e94560; color:#fff; } .ba:disabled { opacity:.3; cursor:default; background:#1a1a2e; }
-.bt { border-color:#ffab00; color:#ffab00; } .bt:hover { background:#ffab00; color:#1a1a2e; }
+.sr .l { color:#4a3e6b; } .sr .v { color:#1a1330; font-weight:bold; }
+.ba { display:block; width:100%; padding:6px; margin:2px 0; border:1.5px solid #ff4d9a; background:#fdfbf7; color:#ff4d9a; font-size:11px; font-weight:bold; border-radius:4px; cursor:pointer; text-align:center; }
+.ba:hover { background:#ff4d9a; color:#fdfbf7; } .ba:disabled { opacity:.3; cursor:default; background:#fdfbf7; }
+.bt { border-color:#ffd23f; color:#8d6e63; } .bt:hover { background:#ffd23f; color:#1a1330; }
 .bf { border-color:#7c4dff; color:#7c4dff; } .bf:hover { background:#7c4dff; color:#fff; }
-.le { font-size:10px; color:#556; border-bottom:1px solid #1a1a2e; padding:2px 0; }
-.le.combat { color:#e94560; } .le.event { color:#ffab00; } .le.story { color:#ff69b4; }
-#bb { padding:5px 6px; border-top:1px solid #333; background:#16213e; }
-canvas#mm { position:absolute; bottom:8px; left:8px; width:160px; height:140px; background:rgba(22,33,62,.9); border:1px solid #333; border-radius:3px; z-index:5; }
-#ts { position:fixed; inset:0; background:#1a1a2e; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; }
-#ts h1 { font-size:52px; color:#ff69b4; text-shadow:0 0 20px rgba(255,105,180,.4); }
-#ts .sub { font-size:18px; color:#aab; font-style:italic; margin:4px 0 24px; }
-.sb { padding:12px 40px; font-size:17px; font-weight:bold; border:2px solid #ff69b4; background:transparent; color:#ff69b4; border-radius:6px; cursor:pointer; }
-.sb:hover { background:#ff69b4; color:#1a1a2e; }
-.fl { font-size:12px; color:#556; margin-top:16px; max-width:500px; text-align:center; line-height:1.5; }
-#mo { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:200; }
-#md { background:#16213e; border:2px solid #ff69b4; border-radius:8px; padding:20px; max-width:480px; width:90%; text-align:center; }
-#md h2 { color:#ff69b4; font-size:20px; margin-bottom:8px; }
-#md .sp { color:#ffab00; font-size:13px; font-weight:bold; margin-bottom:3px; }
-#md .dl { color:#ccd; font-size:14px; line-height:1.5; margin-bottom:14px; font-style:italic; }
-#md .mb { padding:7px 24px; border:1px solid #ff69b4; background:transparent; color:#ff69b4; border-radius:4px; cursor:pointer; font-size:13px; }
-#md .mb:hover { background:#ff69b4; color:#1a1a2e; }
-#ov { position:fixed; inset:0; background:rgba(0,0,0,.75); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:300; }
+.le { font-size:10px; color:#4a3e6b; border-bottom:1px solid rgba(26,19,48,0.1); padding:2px 0; }
+.le.combat { color:#d23240; } .le.event { color:#ff9800; } .le.story { color:#ff4d9a; }
+#bb { padding:5px 6px; border-top:1.5px solid rgba(26,19,48,0.15); background:#f2eadb; }
+canvas#mm { position:absolute; bottom:8px; left:8px; width:160px; height:140px; background:rgba(26,19,48,.9); border:1.5px solid #1a1330; border-radius:8px; z-index:5; }
+/* Title screen */
+#ts { position:fixed; inset:0; background:#fdfbf7; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; }
+#ts h1 { font-size:52px; color:#ff4d9a; font-weight:900; letter-spacing:-0.02em; text-shadow:0 2px 12px rgba(255,77,154,0.18); }
+#ts .sub { font-size:18px; color:#4a3e6b; font-style:italic; margin:4px 0 16px; }
+#ts .campaign-label { color:#7c4dff; font-size:14px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:6px; }
+.ts-emblems { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:16px 0 20px; max-width:480px; width:90%; }
+.ts-emblem-cell { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.ts-emblem-cell img { width:48px; height:48px; }
+.ts-emblem-cell .en { font-size:9px; font-weight:700; color:#1a1330; text-align:center; }
+.ts-diff { display:flex; gap:8px; margin:12px 0 18px; }
+.ts-diff button { padding:6px 14px; font-size:12px; font-weight:700; border:1.5px solid #1a1330; background:#fdfbf7; color:#1a1330; border-radius:4px; cursor:pointer; }
+.ts-diff button.active { background:#ff4d9a; color:#fdfbf7; border-color:#ff4d9a; }
+.ts-diff button:hover { background:#ffc6de; }
+.ts-diff-desc { font-size:11px; color:#4a3e6b; margin-bottom:8px; height:14px; }
+.sb { padding:12px 40px; font-size:17px; font-weight:bold; border:2px solid #ff4d9a; background:#ff4d9a; color:#fdfbf7; border-radius:8px; cursor:pointer; letter-spacing:0.02em; }
+.sb:hover { background:#c8306f; border-color:#c8306f; }
+.fl { font-size:12px; color:#4a3e6b; margin-top:16px; max-width:500px; text-align:center; line-height:1.5; }
+#mo { position:fixed; inset:0; background:rgba(26,19,48,.6); display:none; align-items:center; justify-content:center; z-index:200; }
+#md { background:#fdfbf7; border:2px solid #ff4d9a; border-radius:12px; padding:20px; max-width:480px; width:90%; text-align:center; }
+#md h2 { color:#ff4d9a; font-size:20px; margin-bottom:8px; }
+#md .sp { color:#7c4dff; font-size:13px; font-weight:bold; margin-bottom:3px; }
+#md .dl { color:#4a3e6b; font-size:14px; line-height:1.5; margin-bottom:14px; font-style:italic; }
+#md .mb { padding:7px 24px; border:1.5px solid #ff4d9a; background:#fdfbf7; color:#ff4d9a; border-radius:4px; cursor:pointer; font-size:13px; }
+#md .mb:hover { background:#ff4d9a; color:#fdfbf7; }
+#ov { position:fixed; inset:0; background:rgba(26,19,48,.75); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:300; }
 #ov h1 { font-size:44px; margin-bottom:10px; }
-#ov .ms { font-size:15px; color:#aab; max-width:480px; text-align:center; line-height:1.5; margin-bottom:18px; }
-#ov .rb { padding:10px 32px; font-size:15px; border:2px solid #ff69b4; background:transparent; color:#ff69b4; border-radius:6px; cursor:pointer; }
-#ov .rb:hover { background:#ff69b4; color:#1a1a2e; }
+#ov .ms { font-size:15px; color:#f2eadb; max-width:480px; text-align:center; line-height:1.5; margin-bottom:18px; }
+#ov .rb { padding:10px 32px; font-size:15px; border:2px solid #ff4d9a; background:transparent; color:#ff4d9a; border-radius:8px; cursor:pointer; }
+#ov .rb:hover { background:#ff4d9a; color:#fdfbf7; }
+.hero-portrait { display:inline-block; vertical-align:middle; margin-right:4px; }
+.emblem-inline { display:inline-block; vertical-align:middle; margin-right:3px; }
 </style>
 </head>
 <body>
 <div id="ts">
     <h1>KITTY CONQUEST</h1>
     <div class="sub">A Hitty Kitty Strategy Game</div>
-    <div style="color:#7c4dff;font-size:15px;margin-bottom:10px;">Campaign: The Anvil &amp; The Scepter</div>
+    <div class="campaign-label">Campaign: The Anvil &amp; The Scepter</div>
+    <div class="ts-emblems" id="tsEmblems"></div>
+    <div class="ts-diff" id="tsDiff">
+        <button onclick="setTsDiff('easy')" id="tsd-easy">Easy</button>
+        <button onclick="setTsDiff('normal')" id="tsd-normal" class="active">Normal</button>
+        <button onclick="setTsDiff('hard')" id="tsd-hard">Hard</button>
+        <button onclick="setTsDiff('crazy')" id="tsd-crazy">Crazy</button>
+    </div>
+    <div class="ts-diff-desc" id="tsDiffDesc">10 turns of peace before factions attack.</div>
     <button class="sb" onclick="startGame()">START CAMPAIGN</button>
-    <div class="fl">The ferrets stole Smitty Kitty's Anvil. But they're not the only threat. Five rival factions surround Kitty City, each with their own agenda. Conquer all five capitals to secure the region.</div>
+    <div class="fl">The ferrets stole Smitty Kitty's Anvil. Five rival factions surround Kitty City, each with their own agenda. Conquer all five capitals to secure the region.</div>
 </div>
 <div id="ov"><h1 id="ovt"></h1><div class="ms" id="ovm"></div><button class="rb" onclick="location.reload()">PLAY AGAIN</button></div>
 <div id="mo" onclick="closeModal()"><div id="md" onclick="event.stopPropagation()"><h2 id="mt"></h2><div class="sp" id="ms"></div><div class="dl" id="mdl"></div><button class="mb" onclick="closeModal()">Continue</button></div></div>
@@ -83,7 +105,7 @@ canvas#mm { position:absolute; bottom:8px; left:8px; width:160px; height:140px; 
     <canvas id="mm"></canvas>
     <div id="sp">
         <div id="ps">
-            <div class="pb" id="selp"><h3>Selection</h3><p style="font-size:11px;color:#667;">Click a hex to inspect</p></div>
+            <div class="pb" id="selp"><h3>Selection</h3><p style="font-size:11px;color:#4a3e6b;">Click a hex to inspect</p></div>
             <div class="pb" id="actp" style="display:none"><h3>Actions</h3></div>
             <div class="pb" id="trnp" style="display:none"><h3>Train Unit</h3></div>
             <div class="pb" id="frgp" style="display:none"><h3>Smitty's Forge</h3></div>
@@ -96,9 +118,21 @@ canvas#mm { position:absolute; bottom:8px; left:8px; width:160px; height:140px; 
 
 <script>
 // ================================================================
-// KITTY CONQUEST v4 — Full 6-Faction Strategy Game w/ SVG Sprites
+// KITTY CONQUEST v5 — Full 6-Faction Strategy Game w/ SVG Sprites
+// Design package integrated: emblems, portraits, HUD, terrain, biomes
 // ================================================================
 const HEX=28, MAP_R=10, S3=Math.sqrt(3);
+
+// ================================================================
+// TITLE SCREEN DIFFICULTY PICKER
+// ================================================================
+const DIFF_DESCS={easy:'15 turns of peace before factions attack.',normal:'10 turns of peace before factions attack.',hard:'5 turns of peace. Factions get aggressive quickly.',crazy:'No peace. Factions attack from turn 1.'};
+function setTsDiff(d){
+    difficulty=d;
+    document.querySelectorAll('.ts-diff button').forEach(b=>b.classList.remove('active'));
+    document.getElementById('tsd-'+d).classList.add('active');
+    document.getElementById('tsDiffDesc').textContent=DIFF_DESCS[d];
+}
 
 // ================================================================
 // FACTION PALETTES (from design package)
@@ -125,11 +159,292 @@ const HERO_PALETTES={
 };
 
 // ================================================================
+// BIOME DEFINITIONS
+// ================================================================
+const BIOMES={
+  standard:{paper:'#f2eadb',ink:'#1a1330',floor:'#e8e0c8'},
+  dusk:{paper:'#1f1a33',ink:'#f2eadb',floor:'#2b2048'},
+  blossom:{paper:'#fff5f8',ink:'#4a1d35',floor:'#ffeaf2'},
+};
+
+// ================================================================
 // SVG SPRITE SYSTEM — generates Image objects from SVG strings
 // ================================================================
 const SPRITES={};
 let spritesReady=false;
 
+// ================================================================
+// EMBLEM SVG BUILDERS (converted from emblems.jsx)
+// ================================================================
+const EMBLEM_COLORS={kitty:'#ff69b4',ferret:'#7c4dff',meerkat:'#ff9800',possum:'#78909c',crow:'#607d8b',hyena:'#8d6e63'};
+const SHIELD_PATHS={
+  heater:"M 12 6 L 108 6 L 108 60 Q 108 96 60 118 Q 12 96 12 60 Z",
+  hex:"M 60 6 L 108 32 L 108 88 L 60 114 L 12 88 L 12 32 Z",
+  diamond:"M 60 6 L 114 60 L 60 114 L 6 60 Z",
+  round:"M 60 8 A 52 52 0 1 1 60 112 A 52 52 0 1 1 60 8 Z",
+  pennant:"M 26 6 L 94 6 L 94 86 L 74 106 L 60 92 L 46 106 L 26 86 Z",
+  squat:"M 14 36 Q 14 16 34 14 L 86 14 Q 106 16 106 36 L 106 96 Q 106 110 92 114 L 28 114 Q 14 110 14 96 Z",
+};
+
+function buildShieldSVG(color,shape,innerSVG){
+  const sp=SHIELD_PATHS[shape];
+  return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <path d="${sp}" fill="${color}" stroke="#1a1330" stroke-width="3" stroke-linejoin="round"/>
+    <path d="${sp}" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" transform="translate(0,2) scale(1, 0.98)" style="transform-origin:60px 60px"/>
+    ${innerSVG}
+  </svg>`;
+}
+
+function buildEmblemKitty(){
+  return buildShieldSVG(EMBLEM_COLORS.kitty,'heater',`
+    <g opacity="0.25" transform="translate(60,62)">
+      <ellipse cx="-22" cy="0" rx="12" ry="10" fill="#fff" transform="rotate(-30 -22 0)"/>
+      <ellipse cx="22" cy="0" rx="12" ry="10" fill="#fff" transform="rotate(30 22 0)"/>
+    </g>
+    <g transform="translate(60,60)">
+      <polygon points="-22,-18 -16,-32 -6,-20" fill="#fff"/>
+      <polygon points="22,-18 16,-32 6,-20" fill="#fff"/>
+      <circle cx="0" cy="-2" r="22" fill="#fff"/>
+      <rect x="-10" y="-6" width="4" height="6" fill="${EMBLEM_COLORS.kitty}"/>
+      <rect x="6" y="-6" width="4" height="6" fill="${EMBLEM_COLORS.kitty}"/>
+      <polygon points="-2,6 2,6 0,9" fill="${EMBLEM_COLORS.kitty}"/>
+    </g>`);
+}
+function buildEmblemFerret(){
+  return buildShieldSVG(EMBLEM_COLORS.ferret,'diamond',`
+    <g transform="translate(60,62)" fill="#fff">
+      <path d="M -30 6 Q -10 -18 10 -10 Q 28 -4 32 10 L 24 14 Q 22 4 8 2 Q -6 0 -22 14 Z" fill="#fff"/>
+      <ellipse cx="22" cy="-2" rx="5" ry="3" fill="${EMBLEM_COLORS.ferret}"/>
+      <circle cx="30" cy="8" r="1.5" fill="${EMBLEM_COLORS.ferret}"/>
+      <circle cx="35" cy="12" r="3.5" fill="none" stroke="#fff" stroke-width="2"/>
+      <rect x="38" y="11" width="6" height="2" fill="#fff"/>
+      <rect x="42" y="13" width="2" height="3" fill="#fff"/>
+    </g>`);
+}
+function buildEmblemMeerkat(){
+  return buildShieldSVG(EMBLEM_COLORS.meerkat,'hex',`
+    <g fill="#fff" opacity="0.35">
+      <polygon points="60,22 50,30 70,30"/>
+      <polygon points="60,30 50,38 70,38"/>
+    </g>
+    <g transform="translate(60,66)" fill="#fff">
+      <path d="M -8 -16 Q -12 -20 -8 -28 Q -4 -32 0 -32 Q 4 -32 8 -28 Q 12 -20 8 -16 L 10 20 Q 8 24 -8 24 Q -10 24 -10 20 Z" fill="#fff"/>
+      <rect x="-6" y="-26" width="12" height="3" fill="${EMBLEM_COLORS.meerkat}"/>
+      <circle cx="0" cy="-22" r="1.5" fill="${EMBLEM_COLORS.meerkat}"/>
+      <path d="M 10 10 Q 22 14 22 24" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>
+    </g>`);
+}
+function buildEmblemPossum(){
+  return buildShieldSVG(EMBLEM_COLORS.possum,'round',`
+    <path d="M 92 38 A 20 20 0 1 1 78 50 A 14 14 0 1 0 92 38 Z" fill="#fff" opacity="0.25"/>
+    <rect x="24" y="34" width="72" height="4" fill="#fff" opacity="0.4"/>
+    <g transform="translate(60,36)" fill="#fff">
+      <path d="M 0 0 Q 6 6 -4 14" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="-6" cy="32" rx="18" ry="24" fill="#fff"/>
+      <circle cx="-6" cy="56" r="11" fill="#fff"/>
+      <polygon points="-16,56 -22,56 -20,52" fill="#fff"/>
+      <circle cx="2" cy="50" r="3" fill="#fff"/>
+      <path d="M -10 56 L -6 60 M -10 60 L -6 56" stroke="${EMBLEM_COLORS.possum}" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    </g>`);
+}
+function buildEmblemCrow(){
+  return buildShieldSVG(EMBLEM_COLORS.crow,'pennant',`
+    <g opacity="0.22" stroke="#fff" stroke-width="2" fill="none">
+      <path d="M 36 26 L 60 38 L 84 26"/>
+      <path d="M 36 36 L 60 48 L 84 36"/>
+    </g>
+    <g transform="translate(60,64)" fill="#fff">
+      <path d="M -14 -8 Q -16 -22 0 -22 Q 16 -22 18 -6 Q 18 8 4 10 Q -12 10 -14 -8 Z" fill="#fff"/>
+      <polygon points="-14,-6 -30,-2 -28,2 -14,2" fill="#fff"/>
+      <polygon points="-28,-1 -30,-2 -28,1" fill="${EMBLEM_COLORS.crow}"/>
+      <circle cx="4" cy="-8" r="2.5" fill="${EMBLEM_COLORS.crow}"/>
+      <circle cx="4" cy="-8" r="1" fill="#fff"/>
+      <polygon points="6,-22 10,-30 14,-22" fill="#fff"/>
+      <polygon points="12,-22 16,-30 20,-22" fill="#fff"/>
+    </g>`);
+}
+function buildEmblemHyena(){
+  const H=EMBLEM_COLORS.hyena;
+  return buildShieldSVG(H,'squat',`
+    <g stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.22">
+      <path d="M 28 28 L 42 42"/>
+      <path d="M 38 26 L 52 40"/>
+      <path d="M 48 24 L 62 38"/>
+    </g>
+    <g transform="translate(60,68)" fill="#fff">
+      <path d="M 22 8 Q 30 -6 28 18 L 18 22 Z" fill="#fff"/>
+      <path d="M -32 -2 L -28 -10 L -14 -16 L 6 -18 Q 22 -18 24 -8 L 24 6 Q 20 14 6 16 L -8 14 L -20 10 L -28 4 Z" fill="#fff"/>
+      <path d="M -30 2 L -14 6 L 0 8 L 18 10 L 16 16 L 0 16 L -16 12 Z" fill="#fff"/>
+      <circle cx="-30" cy="-3" r="2" fill="${H}"/>
+      <polygon points="10,-18 16,-26 20,-18" fill="#fff"/>
+      <path d="M -6 -8 L 4 -10 L 4 -7 L -6 -5 Z" fill="${H}"/>
+      <path d="M -8 -12 L 6 -14" stroke="${H}" stroke-width="2" stroke-linecap="round"/>
+      <polygon points="-18,6 -15,12 -12,6" fill="${H}"/>
+      <polygon points="-8,7 -5,13 -2,7" fill="${H}"/>
+      <polygon points="4,8 7,13 10,8" fill="${H}"/>
+      <polygon points="16,-18 20,-28 24,-18" fill="#fff"/>
+      <polygon points="20,-16 24,-26 28,-16" fill="#fff"/>
+    </g>`);
+}
+
+const EMBLEM_BUILDERS={kitty:buildEmblemKitty,ferret:buildEmblemFerret,meerkat:buildEmblemMeerkat,possum:buildEmblemPossum,crow:buildEmblemCrow,hyena:buildEmblemHyena};
+
+// ================================================================
+// HERO PORTRAIT SVG BUILDERS (converted from heroes.jsx HeroFace)
+// ================================================================
+const HERO_EXPRESSIONS=['neutral','determined','scared','smug','angry','ko'];
+
+function buildPortraitEyes(p,expression,id){
+  const ink=p.ink,paper='#fff4e6',eyeY=-2;
+  if(expression==='ko') return `<g stroke="${ink}" stroke-width="2" stroke-linecap="round" fill="none">
+    <path d="M -10 -6 l 8 8 M -2 -6 l -8 8"/>
+    <path d="M 2 -6 l 8 8 M 10 -6 l -8 8"/>
+  </g>`;
+  if(expression==='smug') return `<g>
+    <g fill="${paper}" stroke="none">
+      <path d="M -11 ${eyeY+2} q 4 -6 9 0 l 0 1 q -4 2 -9 0 Z"/>
+      <path d="M 2 ${eyeY+2} q 4 -6 9 0 l 0 1 q -4 2 -9 0 Z"/>
+    </g>
+    <g stroke="${ink}" stroke-width="2.4" stroke-linecap="round" fill="none">
+      <path d="M -10.5 ${eyeY+2} q 4 -5 8.5 0"/>
+      <path d="M 2.5 ${eyeY+2} q 4 -5 8.5 0"/>
+    </g>
+    <g stroke="${ink}" stroke-width="1.4" stroke-linecap="round">
+      <line x1="-11" y1="${eyeY+1}" x2="-12.5" y2="${eyeY}"/>
+      <line x1="11" y1="${eyeY+1}" x2="12.5" y2="${eyeY}"/>
+    </g>
+    <ellipse cx="-12" cy="5" rx="2.5" ry="1.4" fill="${p.accent}" opacity="0.45" stroke="none"/>
+    <ellipse cx="12" cy="5" rx="2.5" ry="1.4" fill="${p.accent}" opacity="0.45" stroke="none"/>
+    ${id==='witty'?buildWittyGlasses(p):''}
+  </g>`;
+  if(expression==='angry') return `<g>
+    <g stroke="${ink}" stroke-width="1.5" fill="${paper}">
+      <path d="M -10 ${eyeY-1} A 4 4 0 0 1 -2 ${eyeY-1} L -10 ${eyeY-1} Z"/>
+      <path d="M 2 ${eyeY-1} A 4 4 0 0 1 10 ${eyeY-1} L 2 ${eyeY-1} Z"/>
+    </g>
+    <circle cx="-6" cy="${eyeY-2.5}" r="2" fill="${ink}"/>
+    <circle cx="6" cy="${eyeY-2.5}" r="2" fill="${ink}"/>
+    <g stroke="${ink}" stroke-width="2.2" stroke-linecap="round" fill="${ink}">
+      <polygon points="-11,-9 -1,-5 -3,-3 -11,-7"/>
+      <polygon points="11,-9 1,-5 3,-3 11,-7"/>
+    </g>
+    ${id==='witty'?buildWittyGlasses(p):''}
+  </g>`;
+  if(expression==='scared'||(id==='skitty'&&expression!=='ko'&&expression!=='smug')) return `<g>
+    <ellipse cx="-6" cy="${eyeY}" rx="4.5" ry="5.5" fill="${paper}" stroke="${ink}" stroke-width="1.5"/>
+    <ellipse cx="6" cy="${eyeY}" rx="4.5" ry="5.5" fill="${paper}" stroke="${ink}" stroke-width="1.5"/>
+    <circle cx="-6" cy="${eyeY+1}" r="1.1" fill="${ink}"/>
+    <circle cx="6" cy="${eyeY+1}" r="1.1" fill="${ink}"/>
+    <g stroke="${ink}" stroke-width="0.9" opacity="0.5">
+      <line x1="-13" y1="-6" x2="-11" y2="-8"/>
+      <line x1="13" y1="-6" x2="11" y2="-8"/>
+    </g>
+    ${id==='witty'?buildWittyGlasses(p):''}
+  </g>`;
+  if(expression==='determined') return `<g>
+    <g fill="${paper}" stroke="${ink}" stroke-width="1.5">
+      <path d="M -10 ${eyeY} q 4 -3 8 0 q -4 2 -8 0 Z"/>
+      <path d="M 2 ${eyeY} q 4 -3 8 0 q -4 2 -8 0 Z"/>
+    </g>
+    <ellipse cx="-6" cy="${eyeY}" rx="1.6" ry="1.3" fill="${ink}"/>
+    <ellipse cx="6" cy="${eyeY}" rx="1.6" ry="1.3" fill="${ink}"/>
+    <g stroke="${ink}" stroke-width="1.4" stroke-linecap="round">
+      <line x1="-10" y1="-7" x2="-3" y2="-6"/>
+      <line x1="10" y1="-7" x2="3" y2="-6"/>
+    </g>
+    ${id==='witty'?buildWittyGlasses(p):''}
+  </g>`;
+  // neutral
+  const isGritty=id==='gritty';
+  return `<g>
+    <ellipse cx="-6" cy="${eyeY}" rx="3.4" ry="3.4" fill="${paper}" stroke="${ink}" stroke-width="1.5"/>
+    <ellipse cx="6" cy="${eyeY}" rx="3.4" ry="3.4" fill="${paper}" stroke="${ink}" stroke-width="1.5"/>
+    <circle cx="-6" cy="${eyeY}" r="1.8" fill="${ink}"/>
+    <circle cx="6" cy="${eyeY}" r="1.8" fill="${ink}"/>
+    <circle cx="-5" cy="${eyeY-1}" r="0.6" fill="${paper}"/>
+    <circle cx="7" cy="${eyeY-1}" r="0.6" fill="${paper}"/>
+    ${isGritty?`<g fill="${ink}">
+      <path d="M -10 ${eyeY-4} q 4 3 8 0 l 0 2 q -4 2 -8 0 Z"/>
+      <path d="M 2 ${eyeY-4} q 4 3 8 0 l 0 2 q -4 2 -8 0 Z"/>
+    </g>`:''}
+    ${id==='witty'?buildWittyGlasses(p):''}
+  </g>`;
+}
+
+function buildWittyGlasses(p){
+  return `<g stroke="${p.ink}" stroke-width="1.6" fill="none">
+    <circle cx="-6" cy="-2" r="5.2"/>
+    <circle cx="6" cy="-2" r="5.2"/>
+    <line x1="-1" y1="-2" x2="1" y2="-2"/>
+  </g>`;
+}
+
+function buildPortraitMouth(p,expression){
+  const ink=p.ink,nose=p.nose,y=8;
+  const nosePatch=`<polygon points="-1.5,${y-4} 1.5,${y-4} 0,${y-1.8}" fill="${nose}"/>`;
+  let mouth='';
+  if(expression==='ko') mouth=`<path d="M -4 ${y+3} q 4 -4 8 0" stroke="${ink}" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  else if(expression==='scared') mouth=`<ellipse cx="0" cy="${y+3.5}" rx="2" ry="2.5" fill="${ink}"/>`;
+  else if(expression==='smug') mouth=`<path d="M -5 ${y+2} q 2 2 5 -1 q 3 3 5 1" stroke="${ink}" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  else if(expression==='angry') mouth=`<path d="M -5 ${y+4} l 10 0 M -3 ${y+2} l 2 2 M 3 ${y+2} l -2 2" stroke="${ink}" stroke-width="1.7" fill="none" stroke-linecap="round"/>`;
+  else if(expression==='determined') mouth=`<path d="M -4 ${y+3} l 8 0" stroke="${ink}" stroke-width="1.8" stroke-linecap="round"/>`;
+  else mouth=`<g stroke="${ink}" stroke-width="1.5" fill="none" stroke-linecap="round">
+    <path d="M 0 ${y-1} q -3 3 -5 1"/>
+    <path d="M 0 ${y-1} q 3 3 5 1"/>
+  </g>`;
+  return nosePatch+mouth;
+}
+
+function buildPortraitSVG(heroId,expression){
+  const p=HERO_PALETTES[heroId];
+  if(!p)return null;
+  const ink=p.ink,f=p.fur,fs=p.furShade,acc=p.accent,cloth=p.cloth,cloth2=p.cloth2;
+  const isFlat=expression==='ko';
+  // Ears
+  let ears=`<g${isFlat?' transform="rotate(-10)"':''}>
+    <polygon points="-18,-14 -10,-24 -6,-12" fill="${f}" stroke="${ink}" stroke-width="1.6"/>
+    <polygon points="-14,-16 -10,-22 -8,-14" fill="${fs}"/>
+    <polygon points="18,-14 10,-24 6,-12" fill="${f}" stroke="${ink}" stroke-width="1.6"/>
+    <polygon points="14,-16 10,-22 8,-14" fill="${fs}"/>
+    ${heroId==='gritty'?`<polygon points="-10,-24 -7,-20 -10,-20" fill="${ink}"/>`:''}
+    ${heroId==='pritty'?`<g transform="translate(0,-22)">
+      <polygon points="0,0 -6,-4 -6,4" fill="${acc}" stroke="${ink}" stroke-width="1.2"/>
+      <polygon points="0,0 6,-4 6,4" fill="${acc}" stroke="${ink}" stroke-width="1.2"/>
+      <circle r="2" fill="${acc}" stroke="${ink}" stroke-width="1.2"/>
+    </g>`:''}
+  </g>`;
+  // Head
+  let head=`<circle cx="0" cy="0" r="22" fill="${f}" stroke="${ink}" stroke-width="1.8"/>
+    <path d="M -20 4 q 4 10 14 12" fill="${fs}" opacity="0.5"/>`;
+  if(heroId==='hitty') head+=`<path d="M -22 -8 q 22 -8 44 0 l -2 6 q -20 -6 -40 0 Z" fill="${cloth}" stroke="${ink}" stroke-width="1.5"/>`;
+  if(heroId==='shitty') head+=`<rect x="-14" y="-12" width="18" height="5" fill="${cloth2}" stroke="${ink}" stroke-width="1.2" transform="rotate(-8)"/>
+    <circle cx="10" cy="8" r="2.2" fill="${fs}" opacity="0.7"/>`;
+  if(heroId==='gritty') head+=`<line x1="3" y1="-8" x2="10" y2="2" stroke="${ink}" stroke-width="1.2"/>`;
+  if(heroId==='skitty') head+=`<path d="M 18 -4 q 4 4 2 7 q -4 0 -2 -7 Z" fill="#9cd1ff" stroke="${ink}" stroke-width="1"/>`;
+  // Eyes + Mouth + Whiskers
+  const eyes=buildPortraitEyes(p,expression,heroId);
+  const mouth=buildPortraitMouth(p,expression);
+  const droop=heroId==='shitty';
+  const whiskers=`<g stroke="${ink}" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.7">
+    <line x1="-8" y1="6" x2="-18" y2="${droop?10:4}"/>
+    <line x1="-8" y1="8" x2="-18" y2="${droop?13:8}"/>
+    <line x1="8" y1="6" x2="18" y2="4"/>
+    <line x1="8" y1="8" x2="18" y2="8"/>
+  </g>`;
+  let extra='';
+  if(heroId==='pritty') extra=`<g fill="${acc}" opacity="0.5">
+    <ellipse cx="-12" cy="6" rx="3" ry="1.6"/>
+    <ellipse cx="12" cy="6" rx="3" ry="1.6"/>
+  </g>`;
+
+  return `<svg viewBox="-30 -34 60 60" xmlns="http://www.w3.org/2000/svg">
+    ${ears}${head}${eyes}${mouth}${whiskers}${extra}
+  </svg>`;
+}
+
+// ================================================================
+// UNIT SPRITE SVG BUILDERS (existing, preserved)
+// ================================================================
 function svgHead(faction,p){
   const f=p.fur,fs=p.furShade,ink=p.ink,acc=p.accent;
   switch(faction){
@@ -234,6 +549,9 @@ function svgBody(p){
     <ellipse cx="-5" cy="37" rx="4.5" ry="2.3" fill="${fs}" stroke="${ink}" stroke-width="1.2"/>
     <ellipse cx="5" cy="37" rx="4.5" ry="2.3" fill="${fs}" stroke="${ink}" stroke-width="1.2"/>
   </g>`;
+}
+
+
 }
 
 function svgAccessory(faction,unit,p){
@@ -562,41 +880,8 @@ function buildHeroSVG(heroId){
   </svg>`;
 }
 
-function svgToImage(svgStr){
-  return new Promise((resolve)=>{
-    const img=new Image();
-    img.onload=()=>resolve(img);
-    img.onerror=()=>resolve(null);
-    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgStr);
-  });
-}
-
-async function preloadSprites(){
-  const promises=[];
-  // Unit sprites for each faction
-  Object.entries(F).forEach(([fac,fdata])=>{
-    Object.keys(fdata.units).forEach(uid=>{
-      const svg=buildUnitSVG(fac,uid);
-      if(svg){
-        const key=fac+'.'+uid;
-        promises.push(svgToImage(svg).then(img=>{if(img)SPRITES[key]=img}));
-      }
-    });
-  });
-  // Hero sprites
-  Object.keys(HEROES).forEach(hid=>{
-    const svg=buildHeroSVG(hid);
-    if(svg){
-      const key='hero.'+hid;
-      promises.push(svgToImage(svg).then(img=>{if(img)SPRITES[key]=img}));
-    }
-  });
-  await Promise.all(promises);
-  spritesReady=true;
-}
-
 // ================================================================
-// TERRAIN — Updated warm palette from tiles.jsx
+// TERRAIN — Updated warm palette + new types
 // ================================================================
 const T={
     PLAINS:  {id:'plains',  c:'#e8e0c8',name:'Plains',  mc:1,def:0},
@@ -604,11 +889,13 @@ const T={
     MOUNTAIN:{id:'mountain',c:'#c7bdae',name:'Mountain',mc:3,def:2},
     WATER:   {id:'water',   c:'#5e8aab',name:'Water',   mc:-1,def:0},
     CITY:    {id:'city',    c:'#f2eadb',name:'City',     mc:1,def:1},
+    CAFE:    {id:'cafe',    c:'#ffd5e4',name:'Cafe',     mc:1,def:0},
+    FORGE_T: {id:'forge_t', c:'#8a7f71',name:'Forge',    mc:1,def:1},
+    ORDNANCE:{id:'ordnance',c:'#b35c44',name:'Ordnance Pile',mc:1,def:0},
+    RUIN:    {id:'ruin',    c:'#a8a098',name:'Ruin',     mc:1,def:0},
+    BRIDGE:  {id:'bridge',  c:'#a08060',name:'Bridge',   mc:1,def:0},
 };
 
-// ================================================================
-// FACTIONS — 6 total, each with unique units (updated IDs/names)
-// ================================================================
 const F={
     kitty:{
         name:'Kitty City',col:'#ff69b4',dk:'#cc3377',
@@ -772,7 +1059,109 @@ function genMap(){
         const k=hK(s.q,s.r);
         if(tiles[k]&&tiles[k].terrain.id!=='water'&&!tiles[k].isCity)
             setCity(tiles,s.q,s.r,null,vn[i]||'Village',2,false);
+// ================================================================
+// GAME STATE
+// ================================================================
+function createGame(){
+    const tiles=genMap(),units={};let uid=0;
+    const mk=(fac,type,q,r,heroId)=>{
+        const tmpl=heroId?HEROES[heroId]:F[fac].units[type];
+        const id='u'+(uid++);
+        units[id]={id,faction:fac,type:heroId?'hero':type,q,r,
+            hp:tmpl.hp,maxHp:tmpl.hp,atk:tmpl.atk,def:tmpl.def,
+            icon:tmpl.ic,name:heroId?tmpl.name:tmpl.n,
+            isHero:!!heroId,heroId:heroId||null,
+            xp:0,level:1,kills:0,
+            fakerUsed:false,
+        };
+    };
+    // Kitty starting units
+    mk('kitty','fiter',0,0,'hitty');mk('kitty','fiter',0,-1,'gritty');mk('kitty','fiter',-1,1,'witty');
+// ================================================================
+// MAP GENERATION — radius 10, ~331 tiles, 6 capitals, biomes, structures
+// ================================================================
+const CAPITALS={
+    kitty:  {q:0,r:0,   name:'Kitty City'},
+    ferret: {q:8,r:-4,  name:'Ferret City'},
+    meerkat:{q:3,r:7,   name:'Meerkat Burrows'},
+    possum: {q:-6,r:8,  name:'Possum Town'},
+    crow:   {q:-8,r:2,  name:"Crow's Nest"},
+    hyena:  {q:-2,r:-8, name:'Hyena Heights'},
+};
+
+function assignBiome(q,r){
+    const dist=hD({q,r},{q:0,r:0});
+    if(dist<=3) return 'standard';
+    if(q<-2 && r<0) return 'dusk';
+    if(q>1 && r>2) return 'blossom';
+    return 'standard';
+}
+
+function genMap(){
+    const tiles={};
+    const seed=Math.random()*10000;
+    for(let q=-MAP_R;q<=MAP_R;q++) for(let r=-MAP_R;r<=MAP_R;r++){
+        if(Math.abs(q+r)>MAP_R||hD({q,r},{q:0,r:0})>MAP_R) continue;
+        const n1=pn(q*5.7+seed,r*7.3+seed),n2=pn(q*3.1+seed+100,r*9.2+seed+200),n3=pn(q*11.3+seed+300,r*4.8+seed+400);
+        const c=n1*.5+n2*.3+n3*.2;
+        let t=T.PLAINS;
+        if(c>.58) t=T.FOREST;
+        if(c>.78) t=T.MOUNTAIN;
+        const wn=pn(q*2.3+seed+500,r*2.7+seed+600);
+        if(wn>.88&&hD({q,r},{q:0,r:0})>2) t=T.WATER;
+        Object.values(CAPITALS).forEach(cap=>{if(hD({q,r},{q:cap.q,r:cap.r})<=2)t=T.PLAINS});
+        const biome=assignBiome(q,r);
+        tiles[hK(q,r)]={q,r,terrain:t,owner:null,isCity:false,cityName:null,prod:0,isCapital:false,cityLevel:0,visible:false,explored:false,biome,
+            isCafe:false,isForgeStructure:false,isOrdnance:false,isRuin:false,ruinUsed:false,isBridge:false};
+    }
+    Object.entries(CAPITALS).forEach(([fac,cap])=>{
+        setCity(tiles,cap.q,cap.r,fac,cap.name,4,true);
     });
+    const vs=[
+        {q:4,r:-2},{q:5,r:1},{q:1,r:4},{q:-2,r:5},{q:-4,r:5},{q:-5,r:0},{q:-4,r:-3},{q:-1,r:-4},{q:2,r:-4},
+        {q:0,r:2},{q:2,r:0},{q:-2,r:0},{q:0,r:-2},{q:6,r:-6},{q:-6,r:-2},{q:3,r:-7},{q:-3,r:3},{q:6,r:3},
+    ];
+    const vn=['Whisker Village','Paw Crossing','Catnip Glen','Mousehole','Yarn Town','Scratch Post','Purr Haven',
+              'Fur Landing','Claw Creek','The Litterbox','Nap Meadow','Hiss Crossing','Tail End','Fang Hollow',
+              'Pounce Point','Meow Market','Bristle Bridge','Prowl Path'];
+    vs.forEach((s,i)=>{
+        const k=hK(s.q,s.r);
+        if(tiles[k]&&tiles[k].terrain.id!=='water'&&!tiles[k].isCity)
+            setCity(tiles,s.q,s.r,null,vn[i]||'Village',2,false);
+    });
+
+    // Place structures
+    const allKeys=Object.keys(tiles);
+    const shuffled=allKeys.sort(()=>Math.random()-0.5);
+    let cafeCount=0,forgeCount=0,ordCount=0,ruinCount=0,bridgeCount=0;
+    for(const k of shuffled){
+        const t=tiles[k];
+        if(!t||t.isCity||t.terrain.id==='water') continue;
+        const dist=hD({q:t.q,r:t.r},{q:0,r:0});
+        if(dist<3) continue;
+        if(cafeCount<4&&t.terrain.id==='plains'&&Math.random()<0.015){
+            t.terrain=T.CAFE;t.isCafe=true;cafeCount++;continue;
+        }
+        if(forgeCount<3&&t.terrain.id==='plains'&&Math.random()<0.012){
+            t.terrain=T.FORGE_T;t.isForgeStructure=true;forgeCount++;continue;
+        }
+        if(ordCount<4&&(t.terrain.id==='plains'||t.terrain.id==='forest')&&Math.random()<0.014){
+            t.terrain=T.ORDNANCE;t.isOrdnance=true;ordCount++;continue;
+        }
+        if(ruinCount<6&&t.terrain.id==='plains'&&Math.random()<0.02){
+            t.terrain=T.RUIN;t.isRuin=true;ruinCount++;continue;
+        }
+    }
+    for(const k of allKeys){
+        const t=tiles[k];
+        if(!t||t.terrain.id!=='water') continue;
+        if(bridgeCount>=5) break;
+        const neighbors=hN(t.q,t.r);
+        const landNeighbors=neighbors.filter(n=>{const nt=tiles[hK(n.q,n.r)];return nt&&nt.terrain.mc>0});
+        if(landNeighbors.length>=2&&Math.random()<0.25){
+            t.terrain=T.BRIDGE;t.isBridge=true;bridgeCount++;
+        }
+    }
     return tiles;
 }
 function setCity(tiles,q,r,owner,name,prod,isCap){
@@ -799,42 +1188,28 @@ function createGame(){
             fakerUsed:false,
         };
     };
-    // Kitty starting units
     mk('kitty','fiter',0,0,'hitty');mk('kitty','fiter',0,-1,'gritty');mk('kitty','fiter',-1,1,'witty');
     mk('kitty','fiter',1,0,'pritty');mk('kitty','fiter',-1,0,'skitty');mk('kitty','fiter',1,-1,'shitty');
     mk('kitty','fiter',0,1,null);mk('kitty','bloker',-1,2,null);
-
-    // Ferret starting units (updated IDs)
     mk('ferret','pickpocket',8,-4);mk('ferret','raider',8,-5);mk('ferret','slinker',7,-3);mk('ferret','raider',9,-5);
-    // Meerkat starting units (updated IDs)
     mk('meerkat','sentry',3,7);mk('meerkat','sentry',3,6);mk('meerkat','sentry',4,6);mk('meerkat','sentry',2,7);mk('meerkat','phalanx',4,7);
-    // Possum starting units (updated IDs)
     mk('possum','scavenger',-6,8);mk('possum','playdead',-6,7);mk('possum','trickster',-5,7);
-    // Crow starting units (updated IDs)
     mk('crow','messenger',-8,2);mk('crow','messenger',-7,2);mk('crow','divestriker',-8,3);mk('crow','tooluser',-7,1);
-    // Hyena starting units (updated IDs)
     mk('hyena','brute',-2,-8);mk('hyena','brute',-3,-7);mk('hyena','howler',-1,-8);
-
     const aiFactions=['ferret','meerkat','possum','crow','hyena'];
     const res={};
     aiFactions.forEach(f=>res[f]=10);
     res.kitty=12;
-
     return{
         tiles,units,turn:1,currentFaction:'kitty',
-        res,
-        nextUid:uid,log:[],gameOver:false,
+        res,nextUid:uid,log:[],gameOver:false,
         forgeLevel:0,fb:{mAtk:0,aDef:0,regen:0},
         unlocked:{fiter:true,bloker:true,shoter:false,crusher:false},
         flags:{},firedEvents:new Set(),improvements:{},
-        grudges:{},
-        provoked:{},
-        capturedCaps:0,
+        grudges:{},provoked:{},capturedCaps:0,
     };
 }
 
-// ================================================================
-// FOG OF WAR
 // ================================================================
 function updateVision(){
     if(!fogOn){Object.values(G.tiles).forEach(t=>{t.visible=true;t.explored=true});return}
@@ -854,8 +1229,6 @@ function updateVision(){
 }
 
 // ================================================================
-// HERO AURAS
-// ================================================================
 function applyHeroAuras(){
     eachUnit(G,'kitty',u=>{u._rally=0;u._heal=0});
     Object.values(G.units).forEach(u=>{
@@ -866,8 +1239,6 @@ function applyHeroAuras(){
     eachUnit(G,'kitty',u=>{let h=(u._heal||0);if(G.fb.regen)h+=1;if(h>0)u.hp=Math.min(u.maxHp,u.hp+h)});
 }
 
-// ================================================================
-// IMPROVEMENTS
 // ================================================================
 const IMP={farm:{name:'Farm',cost:4,desc:'+1 income to nearest city',icon:'🌾'},workshop:{name:'Workshop',cost:6,desc:'+2 income to nearest city',icon:'🔧'},watchtower:{name:'Watchtower',cost:5,desc:'+2 vision',icon:'🗼'}};
 function buildImp(type,q,r){
@@ -882,8 +1253,6 @@ function buildImp(type,q,r){
     updateVision();return true;
 }
 
-// ================================================================
-// PATHFINDING
 // ================================================================
 function getReach(unit){
     const reach={},vis={};
@@ -911,8 +1280,6 @@ function getAtk(unit){
 }
 function unitAt(q,r){return Object.values(G.units).find(u=>u.q===q&&u.r===r)}
 
-// ================================================================
-// COMBAT (updated unit type references)
 // ================================================================
 function getCityDef(tile){
     if(!tile)return 0;
@@ -996,11 +1363,44 @@ function combat(atk,def){
 function checkLvl(u){const need=u.level*5;if(u.xp>=need){u.level++;u.xp-=need;u.maxHp+=2;u.hp=Math.min(u.hp+2,u.maxHp);u.atk++;if(u.level%2===0)u.def++;addLog(`${u.name} reached level ${u.level}!`,'event')}}
 
 // ================================================================
-// CITY CAPTURE
+// CITY CAPTURE + ORDNANCE EXPLOSION
 // ================================================================
 function checkCap(unit){
     const k=hK(unit.q,unit.r),tile=G.tiles[k];
-    if(!tile||!tile.isCity||tile.owner===unit.faction)return;
+    if(!tile)return;
+
+    // Ordnance pile: deal 3 damage to all adjacent enemies on capture
+    if(tile.isOrdnance&&tile.owner!==unit.faction){
+        tile.owner=unit.faction;
+        const neighbors=hN(tile.q,tile.r);
+        let hitCount=0;
+        neighbors.forEach(n=>{
+            const eu=unitAt(n.q,n.r);
+            if(eu&&eu.faction!==unit.faction){
+                eu.hp-=3;hitCount++;
+                if(eu.hp<=0){
+                    addLog(`${eu.name} destroyed by ordnance explosion!`,'combat');
+                    if(eu.isHero)G.flags.heroKilled=true;
+                    delete G.units[eu.id];
+                } else {
+                    addLog(`${eu.name} takes 3 damage from ordnance!`,'combat');
+                }
+            }
+        });
+        if(hitCount>0) addLog(`Ordnance pile explodes! ${hitCount} enemies hit.`,'event');
+        else addLog(`${F[unit.faction].name} captures ordnance pile.`,'event');
+        return;
+    }
+
+    // Structure ownership (cafe, forge)
+    if((tile.isCafe||tile.isForgeStructure)&&tile.owner!==unit.faction){
+        const prev=tile.owner;
+        tile.owner=unit.faction;
+        addLog(`${F[unit.faction].name} captures ${tile.terrain.name}!`,'event');
+        return;
+    }
+
+    if(!tile.isCity||tile.owner===unit.faction)return;
     const prev=tile.owner;tile.owner=unit.faction;
     addLog(`${F[unit.faction].name} captures ${tile.cityName||'Village'}!`,'event');
     if(!prev&&unit.faction==='kitty')G.flags.firstVillage=true;
@@ -1016,8 +1416,45 @@ function checkCap(unit){
     }
 }
 
-// ================================================================
-// AI SYSTEM (updated unit type references)
+// Scavenge ruin action
+function scavengeRuin(q,r){
+    const k=hK(q,r),tile=G.tiles[k];
+    if(!tile||!tile.isRuin||tile.ruinUsed) return;
+    const unit=unitAt(q,r);
+    if(!unit||unit.faction!=='kitty'||unit.moveLeft<unit.maxMv) return;
+    tile.ruinUsed=true;
+    unit.moveLeft=0;
+    const roll=Math.random();
+    if(roll<0.45){
+        const amt=3+Math.floor(Math.random()*6);
+        G.res.kitty+=amt;
+        addLog(`Scavenged ${amt} catnips from the ruin!`,'event');
+    } else if(roll<0.75){
+        // Free unit
+        const types=['fiter','bloker'];
+        const type=types[Math.floor(Math.random()*types.length)];
+        if(!unitAt(q,r+1)){
+            const nq=q,nr=r+1;
+            const tmpl=F.kitty.units[type];
+            const id='u'+(G.nextUid++);
+            G.units[id]={id,faction:'kitty',type,q:nq,r:nr,
+                hp:tmpl.hp,maxHp:tmpl.hp,atk:tmpl.atk,def:tmpl.def,
+                mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,
+                moveLeft:0,hasAttacked:true,
+                icon:tmpl.ic,name:tmpl.n,
+                isHero:false,heroId:null,xp:0,level:1,kills:0,fakerUsed:false};
+            addLog(`Found a ${tmpl.n} hiding in the ruin!`,'event');
+        } else {
+            const amt=5;
+            G.res.kitty+=amt;
+            addLog(`Scavenged ${amt} catnips from the ruin!`,'event');
+        }
+    } else {
+        addLog('The ruin is empty. Nothing but dust.','event');
+    }
+    updateVision();updateUI();render();
+}
+
 // ================================================================
 function runFactionAI(fac){
     const g=G;
@@ -1187,7 +1624,7 @@ function pickTarget(fac){
 }
 
 // ================================================================
-// INCOME & TRAINING
+// INCOME & TRAINING — with cafe/forge structure bonuses
 // ================================================================
 function collectIncome(fac){
     let inc=0;
@@ -1198,16 +1635,36 @@ function collectIncome(fac){
             if(gar&&gar.faction===fac&&gar.isHero)ci*=2;
             inc+=ci;
         }
+        // Cafe income: +3 catnips/turn to controlling faction
+        if(t.isCafe&&t.owner===fac){
+            inc+=3;
+        }
     });
     G.res[fac]=(G.res[fac]||0)+inc;
     if(fac==='kitty')addLog(`+${inc} catnips collected`,'event');
 }
 
+function getForgeDiscount(q,r){
+    // Check if any adjacent tile is a forge structure controlled by same faction
+    const unit=unitAt(q,r);
+    if(!unit) return 1.0;
+    const neighbors=hN(q,r);
+    for(const n of neighbors){
+        const t=G.tiles[hK(n.q,n.r)];
+        if(t&&t.isForgeStructure&&t.owner===unit.faction) return 0.8;
+    }
+    return 1.0;
+}
+
 function trainUnit(fac,type,q,r){
     const tmpl=F[fac].units[type];if(!tmpl)return false;
-    if((G.res[fac]||0)<tmpl.cost)return false;
+    let cost=tmpl.cost;
+    // Apply forge structure discount
+    const discount=getForgeDiscount(q,r);
+    cost=Math.floor(cost*discount);
+    if((G.res[fac]||0)<cost)return false;
     if(unitAt(q,r))return false;
-    G.res[fac]-=tmpl.cost;
+    G.res[fac]-=cost;
     const id='u'+(G.nextUid++);
     G.units[id]={id,faction:fac,type,q,r,
         hp:tmpl.hp,maxHp:tmpl.hp,
@@ -1218,7 +1675,11 @@ function trainUnit(fac,type,q,r){
         icon:tmpl.ic,name:tmpl.n,
         isHero:false,heroId:null,xp:0,level:1,kills:0,fakerUsed:false,
     };
-    if(fac==='kitty')addLog(`Trained ${tmpl.n}`,'event');
+    if(fac==='kitty'){
+        let msg='Trained '+tmpl.n;
+        if(discount<1) msg+=' (20% forge discount!)';
+        addLog(msg,'event');
+    }
     return true;
 }
 
@@ -1237,8 +1698,6 @@ function doForge(){
     G.res.kitty-=t.cost;t.effect(G);addLog(`Forge: ${t.name} researched!`,'event');G.forgeLevel++;updateUI();
 }
 
-// ================================================================
-// TURNS
 // ================================================================
 const AI_FACS=['ferret','meerkat','possum','crow','hyena'];
 
@@ -1301,7 +1760,7 @@ function showModal(){if(!mq.length)return;const e=mq.shift();document.getElement
 function closeModal(){document.getElementById('mo').style.display='none';if(mq.length)setTimeout(showModal,200)}
 
 // ================================================================
-// RENDERING — Updated with sprite drawing and warm terrain palette
+// RENDERING — Sprites, biome tinting, new terrain decorations
 // ================================================================
 function render(){
     if(!G)return;
@@ -1316,6 +1775,12 @@ function render(){
         const p=h2p(tile.q,tile.r),k=hK(tile.q,tile.r);
         if(!tile.explored){dHex(p.x,p.y,HEX-1,'#0a0b10','#0a0b10',.5);return}
         let col=tile.terrain.c;
+        // Apply biome tinting
+        const biome=tile.biome||'standard';
+        if(biome!=='standard'){
+            const bFloor=BIOMES[biome].floor;
+            col=blend(col,bFloor,0.3);
+        }
         if(tile.owner)col=blend(col,F[tile.owner].col,.15);
         if(!tile.visible)col=blend(col,'#0a0b10',.55);
         dHex(p.x,p.y,HEX-1,col,'#2a2535',1);
@@ -1341,7 +1806,7 @@ function render(){
         if(hov&&tile.q===hov.q&&tile.r===hov.r)dHex(p.x,p.y,HEX,'','rgba(255,255,255,.3)',1.5);
 
         X.textAlign='center';X.textBaseline='middle';
-        // Terrain decorations with updated palette
+        // Terrain decorations
         if(tile.terrain.id==='mountain'){
             X.fillStyle='#8a7f71';
             X.beginPath();X.moveTo(p.x-6,p.y+6);X.lineTo(p.x,p.y-6);X.lineTo(p.x+6,p.y+6);X.closePath();X.fill();
@@ -1361,37 +1826,96 @@ function render(){
             X.beginPath();X.moveTo(p.x-8,p.y-2);X.quadraticCurveTo(p.x-4,p.y-5,p.x,p.y-2);X.stroke();
             X.beginPath();X.moveTo(p.x,p.y+2);X.quadraticCurveTo(p.x+4,p.y-1,p.x+8,p.y+2);X.stroke();
         }
+        // Cafe decoration: pink awning shape
+        if(tile.terrain.id==='cafe'){
+            X.fillStyle='#ff4d9a';
+            X.fillRect(p.x-8,p.y-6,16,4);
+            // scalloped bottom
+            for(let i=-8;i<8;i+=4){
+                X.beginPath();X.arc(p.x+i+2,p.y-2,2,0,Math.PI);X.fill();
+            }
+            X.fillStyle='#fdfbf7';X.fillRect(p.x-4,p.y,8,6);
+            X.fillStyle='#1a1330';X.fillRect(p.x+1,p.y+2,3,4);
+        }
+        // Forge decoration: anvil/hammer
+        if(tile.terrain.id==='forge_t'){
+            X.fillStyle='#1a1330';
+            X.fillRect(p.x-4,p.y+1,8,2);
+            X.fillRect(p.x-5,p.y+3,10,1.5);
+            // chimney
+            X.fillRect(p.x+3,p.y-6,2,8);
+            // smoke puff
+            X.fillStyle='#ff4d9a';X.globalAlpha=0.6;
+            X.beginPath();X.arc(p.x+4,p.y-8,2.5,0,Math.PI*2);X.fill();
+            X.globalAlpha=1;
+        }
+        // Ordnance decoration: stacked circles
+        if(tile.terrain.id==='ordnance'){
+            X.fillStyle='#594f45';
+            X.beginPath();X.arc(p.x-4,p.y+2,4,0,Math.PI*2);X.fill();
+            X.beginPath();X.arc(p.x+4,p.y+2,4,0,Math.PI*2);X.fill();
+            X.beginPath();X.arc(p.x,p.y-3,3.5,0,Math.PI*2);X.fill();
+            // fuse
+            X.strokeStyle='#1a1330';X.lineWidth=1;
+            X.beginPath();X.moveTo(p.x,p.y-6.5);X.quadraticCurveTo(p.x+3,p.y-9,p.x+1,p.y-11);X.stroke();
+        }
+        // Ruin decoration: broken column
+        if(tile.terrain.id==='ruin'){
+            X.fillStyle='#d4ccc0';
+            X.fillRect(p.x-3,p.y-4,6,10);
+            // broken top
+            X.beginPath();X.moveTo(p.x-3,p.y-4);X.lineTo(p.x-1,p.y-7);X.lineTo(p.x+2,p.y-5);X.lineTo(p.x+3,p.y-4);X.closePath();X.fill();
+            // crack
+            X.strokeStyle='#8a7f71';X.lineWidth=0.8;
+            X.beginPath();X.moveTo(p.x-1,p.y-3);X.lineTo(p.x+1,p.y+2);X.stroke();
+            if(tile.ruinUsed){
+                X.fillStyle='rgba(0,0,0,0.3)';X.font='6px Arial';X.fillText('used',p.x,p.y+HEX*.5);
+            }
+        }
+        // Bridge decoration: planks over water
+        if(tile.terrain.id==='bridge'){
+            // water underneath
+            X.strokeStyle='#8fb8d4';X.lineWidth=1;
+            X.beginPath();X.moveTo(p.x-8,p.y+4);X.quadraticCurveTo(p.x,p.y+1,p.x+8,p.y+4);X.stroke();
+            // planks
+            X.fillStyle='#c9a978';X.fillRect(p.x-10,p.y-3,20,6);
+            X.strokeStyle='#1a1330';X.lineWidth=0.8;
+            for(let i=-8;i<=8;i+=4){
+                X.beginPath();X.moveTo(p.x+i,p.y-3);X.lineTo(p.x+i,p.y+3);X.stroke();
+            }
+            // posts
+            X.fillStyle='#ff4d9a';
+            X.fillRect(p.x-11,p.y-5,2,10);
+            X.fillRect(p.x+9,p.y-5,2,10);
+        }
 
         if(tile.isCity){
             const oc=tile.owner?F[tile.owner].col:'#aaa';
             X.fillStyle=tile.isCapital?'#ffd700':oc;
             X.font=tile.isCapital?'bold 12px Arial':'10px Arial';
-            X.fillText(tile.isCapital?'★':'●',p.x,p.y-HEX*.38);
+            X.fillText(tile.isCapital?'\u2605':'\u25cf',p.x,p.y-HEX*.38);
             X.fillStyle='#887';X.font='6px Arial';
             const lvl=(tile.cityLevel||0);
-            X.fillText((tile.cityName||'')+(lvl>0?` (${lvl})`:''),p.x,p.y+HEX*.58);
+            X.fillText((tile.cityName||'')+(lvl>0?' ('+lvl+')':''),p.x,p.y+HEX*.58);
         }
         const imp=G.improvements[k];
         if(imp){X.fillStyle='#ddd';X.font='9px Arial';X.fillText(IMP[imp].icon,p.x+HEX*.3,p.y+HEX*.3)}
     });
 
-    // Units — draw sprites where available, fallback to emoji
+    // Units
     Object.values(G.units).forEach(unit=>{
         const tile=G.tiles[hK(unit.q,unit.r)];
         if(!tile||(!tile.visible&&unit.faction!=='kitty'))return;
         const p=h2p(unit.q,unit.r),fac=F[unit.faction],sz=unit.isHero?13:10;
 
-        // Selection ring (behind sprite)
         if(selU&&unit.id===selU.id){X.beginPath();X.arc(p.x,p.y,sz+3,0,Math.PI*2);X.strokeStyle='#fff';X.lineWidth=2;X.stroke()}
 
-        // Try to draw sprite
         let spriteKey=unit.isHero?'hero.'+unit.heroId:unit.faction+'.'+unit.type;
         const sprite=SPRITES[spriteKey];
         if(sprite&&spritesReady){
             const drawSz=unit.isHero?26:22;
             X.drawImage(sprite,p.x-drawSz/2,p.y-drawSz/2-2,drawSz,drawSz);
         } else {
-            // Fallback: circle + emoji
             X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);
             X.fillStyle=unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fac.dk):fac.dk;
             X.fill();X.strokeStyle=fac.col;X.lineWidth=unit.isHero?2.5:1.5;X.stroke();
@@ -1404,10 +1928,8 @@ function render(){
         X.fillStyle='#222';X.fillRect(bx,by,bw,2);
         X.fillStyle=pct>.5?'#0e6':pct>.25?'#fa0':'#f14';X.fillRect(bx,by,bw*pct,2);
 
-        // Level star
-        if(unit.level>1){X.fillStyle='#ffeb3b';X.font='bold 6px Arial';X.textAlign='center';X.textBaseline='middle';X.fillText('★'+unit.level,p.x+sz,p.y-sz+2)}
+        if(unit.level>1){X.fillStyle='#ffeb3b';X.font='bold 6px Arial';X.textAlign='center';X.textBaseline='middle';X.fillText('\u2605'+unit.level,p.x+sz,p.y-sz+2)}
 
-        // Exhausted overlay
         if(unit.moveLeft<=0&&unit.hasAttacked&&unit.faction==='kitty'){X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);X.fillStyle='rgba(0,0,0,.35)';X.fill()}
     });
     X.restore();renderMM();
@@ -1435,8 +1957,30 @@ function renderMM(){
     mmX.strokeStyle='#ff69b4';mmX.lineWidth=1;mmX.strokeRect(vx-vw/2,vy-vh/2,vw,vh);
 }
 
+
 // ================================================================
-// UI
+// HERO EXPRESSION CONTEXT
+// ================================================================
+function getHeroExpression(unit){
+    if(!unit||!unit.isHero) return 'neutral';
+    const hid=unit.heroId;
+    if(unit.hp<=0) return 'ko';
+    // Shitty defaults smug
+    if(hid==='shitty') return 'smug';
+    // Skitty always scared unless ko
+    if(hid==='skitty') return 'scared';
+    // Low HP -> determined
+    if(unit.hp<=unit.maxHp*0.4) return 'determined';
+    // Gritty near enemies -> angry
+    if(hid==='gritty'){
+        const nearEnemy=Object.values(G.units).some(e=>e.faction!=='kitty'&&hD({q:unit.q,r:unit.r},{q:e.q,r:e.r})<=2);
+        if(nearEnemy) return 'angry';
+    }
+    return 'neutral';
+}
+
+// ================================================================
+// UI — with emblems, portraits, scavenge, warm aesthetic
 // ================================================================
 function updateUI(){
     document.getElementById('tn').textContent=G.turn;
@@ -1450,20 +1994,45 @@ function updateUI(){
     updateSel();updateTrain();updateForgeP();updateHeroP();updateLog();
 }
 
+function emblemImg(fac,sz){
+    sz=sz||20;
+    const sp=SPRITES['emblem.'+fac];
+    if(!sp||!spritesReady) return '';
+    // We can't use the Image object in innerHTML, so use the SVG data URL
+    const svg=EMBLEM_BUILDERS[fac]();
+    const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+    return `<img src="${url}" class="emblem-inline" width="${sz}" height="${sz}" style="vertical-align:middle"/>`;
+}
+
+function portraitImg(heroId,expression,sz){
+    sz=sz||48;
+    const svg=buildPortraitSVG(heroId,expression);
+    if(!svg) return '';
+    const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+    return `<img src="${url}" class="hero-portrait" width="${sz}" height="${sz}" style="vertical-align:middle"/>`;
+}
+
 function updateSel(){
     const p=document.getElementById('selp');
-    if(!sel){p.innerHTML='<h3>Selection</h3><p style="font-size:11px;color:#667">Click a hex to inspect</p>';document.getElementById('actp').style.display='none';return}
+    if(!sel){p.innerHTML='<h3>Selection</h3><p style="font-size:11px;color:#4a3e6b">Click a hex to inspect</p>';document.getElementById('actp').style.display='none';return}
     const k=hK(sel.q,sel.r),tile=G.tiles[k];if(!tile)return;
-    let h=`<h3>${tile.terrain.name}${tile.isCity?' — '+(tile.cityName||'City'):''}</h3>`;
+    let h=`<h3>${tile.terrain.name}${tile.isCity?' \u2014 '+(tile.cityName||'City'):''}</h3>`;
     if(tile.isCity){
         const ow=tile.owner?F[tile.owner].name:'Neutral';
+        const facKey=tile.owner||'';
         const gar=unitAt(tile.q,tile.r),hg=gar&&gar.isHero&&gar.faction===tile.owner;
         const ei=hg?tile.prod*2:tile.prod,cd=getCityDef(tile);
-        h+=`<div class="sr"><span class="l">Owner</span><span class="v" style="color:${tile.owner?F[tile.owner].col:'#888'}">${ow}</span></div>`;
+        h+=`<div class="sr"><span class="l">Owner</span><span class="v" style="color:${tile.owner?F[tile.owner].col:'#888'}">${facKey?emblemImg(facKey,16):''}${ow}</span></div>`;
         h+=`<div class="sr"><span class="l">Level</span><span class="v">${tile.cityLevel||0}</span></div>`;
         h+=`<div class="sr"><span class="l">Income</span><span class="v">${ei}/turn${hg?' (2x)':''}</span></div>`;
         h+=`<div class="sr"><span class="l">Defense</span><span class="v">+${cd}${hg?' (2x)':''}</span></div>`;
-    } else h+=`<div class="sr"><span class="l">Defense</span><span class="v">+${tile.terrain.def}</span></div>`;
+    } else {
+        h+=`<div class="sr"><span class="l">Defense</span><span class="v">+${tile.terrain.def}</span></div>`;
+        if(tile.isCafe) h+=`<div class="sr"><span class="l">Bonus</span><span class="v" style="color:#ff4d9a">+3 catnips/turn</span></div>`;
+        if(tile.isForgeStructure) h+=`<div class="sr"><span class="l">Bonus</span><span class="v" style="color:#7c4dff">-20% recruit cost</span></div>`;
+        if(tile.isOrdnance) h+=`<div class="sr"><span class="l">Effect</span><span class="v" style="color:#d23240">Explodes on capture</span></div>`;
+        if(tile.isRuin) h+=`<div class="sr"><span class="l">Status</span><span class="v">${tile.ruinUsed?'Searched':'Scavengeable'}</span></div>`;
+    }
     h+=`<div class="sr"><span class="l">Move cost</span><span class="v">${tile.terrain.mc<0?'Impass.':tile.terrain.mc}</span></div>`;
 
     const imp=G.improvements[k];if(imp)h+=`<div class="sr"><span class="l">Improve.</span><span class="v">${IMP[imp].icon} ${IMP[imp].name}</span></div>`;
@@ -1471,10 +2040,15 @@ function updateSel(){
     const unit=unitAt(sel.q,sel.r);
     if(unit&&(unit.faction==='kitty'||tile.visible)){
         const fc=F[unit.faction];
-        h+=`<div style="margin-top:5px;border-top:1px solid #2a2a3e;padding-top:5px">`;
-        h+=`<div style="color:${unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fc.col):fc.col};font-weight:bold;font-size:12px">${unit.icon} ${unit.name}${unit.level>1?' ★'+unit.level:''}</div>`;
-        h+=`<div style="font-size:9px;color:#556">${fc.name}${unit.isHero?' — Hero':''}</div>`;
-        if(unit.isHero&&HEROES[unit.heroId])h+=`<div style="font-size:9px;color:#ffab00;margin:1px 0">${HEROES[unit.heroId].ability}: ${HEROES[unit.heroId].abilityDesc}</div>`;
+        h+=`<div style="margin-top:5px;border-top:1px solid rgba(26,19,48,0.15);padding-top:5px">`;
+        // Show portrait for hero
+        if(unit.isHero&&unit.faction==='kitty'){
+            const expr=getHeroExpression(unit);
+            h+=`<div style="text-align:center;margin-bottom:4px">${portraitImg(unit.heroId,expr,56)}</div>`;
+        }
+        h+=`<div style="color:${unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fc.col):fc.col};font-weight:bold;font-size:12px">${emblemImg(unit.faction,18)} ${unit.icon} ${unit.name}${unit.level>1?' \u2605'+unit.level:''}</div>`;
+        h+=`<div style="font-size:9px;color:#4a3e6b">${fc.name}${unit.isHero?' \u2014 Hero':''}</div>`;
+        if(unit.isHero&&HEROES[unit.heroId])h+=`<div style="font-size:9px;color:#ff9800;margin:1px 0">${HEROES[unit.heroId].ability}: ${HEROES[unit.heroId].abilityDesc}</div>`;
         h+=`<div class="sr"><span class="l">HP</span><span class="v">${unit.hp}/${unit.maxHp}</span></div>`;
         h+=`<div class="sr"><span class="l">ATK</span><span class="v">${unit.atk}${unit._rally?' (+1)':''}</span></div>`;
         h+=`<div class="sr"><span class="l">DEF</span><span class="v">${unit.def}</span></div>`;
@@ -1485,12 +2059,17 @@ function updateSel(){
 
     if(tile.isCity&&tile.owner==='kitty'&&tile.visible){
         const lvl=tile.cityLevel||0,cost=6+lvl*4;
-        h+=`<div style="margin-top:4px;border-top:1px solid #2a2a3e;padding-top:4px">`;
-        h+=`<button class="ba bf" style="font-size:10px;padding:4px" ${G.res.kitty>=cost?'':'disabled'} onclick="upgradeCity(${sel.q},${sel.r});updateUI();render()">⬆ Upgrade — ${cost} catnips<div style="font-size:9px;color:#889">+1 def, +1 income. Lvl ${lvl}</div></button></div>`;
+        h+=`<div style="margin-top:4px;border-top:1px solid rgba(26,19,48,0.15);padding-top:4px">`;
+        h+=`<button class="ba bf" style="font-size:10px;padding:4px" ${G.res.kitty>=cost?'':'disabled'} onclick="upgradeCity(${sel.q},${sel.r});updateUI();render()">\u2b06 Upgrade \u2014 ${cost} catnips<div style="font-size:9px;color:#4a3e6b">+1 def, +1 income. Lvl ${lvl}</div></button></div>`;
     }
 
-    if(tile.owner==='kitty'&&!tile.isCity&&!imp&&tile.terrain.mc>0&&tile.visible){
-        h+=`<div style="margin-top:4px;border-top:1px solid #2a2a3e;padding-top:4px"><div style="font-size:10px;color:#667;margin-bottom:2px">Build:</div>`;
+    // Scavenge ruin button
+    if(tile.isRuin&&!tile.ruinUsed&&unit&&unit.faction==='kitty'&&unit.moveLeft>=unit.maxMv){
+        h+=`<div style="margin-top:4px"><button class="ba" style="font-size:10px;padding:4px;border-color:#ff9800;color:#ff9800" onclick="scavengeRuin(${sel.q},${sel.r})">\ud83d\udd0d Scavenge Ruin (costs full move)</button></div>`;
+    }
+
+    if(tile.owner==='kitty'&&!tile.isCity&&!tile.isCafe&&!tile.isForgeStructure&&!tile.isOrdnance&&!tile.isRuin&&!tile.isBridge&&!imp&&tile.terrain.mc>0&&tile.visible){
+        h+=`<div style="margin-top:4px;border-top:1px solid rgba(26,19,48,0.15);padding-top:4px"><div style="font-size:10px;color:#4a3e6b;margin-bottom:2px">Build:</div>`;
         Object.entries(IMP).forEach(([t,d])=>{
             h+=`<button class="ba bt" style="font-size:10px;padding:3px" ${G.res.kitty>=d.cost?'':'disabled'} onclick="buildImp('${t}',${sel.q},${sel.r});updateUI();render()">${d.icon} ${d.name} (${d.cost})</button>`;
         });
@@ -1501,8 +2080,8 @@ function updateSel(){
     const ap=document.getElementById('actp');
     if(unit&&unit.faction==='kitty'&&(unit.moveLeft>0||!unit.hasAttacked)){
         ap.style.display='block';let ah='<h3>Actions</h3>';
-        if(unit.moveLeft>0)ah+='<div style="font-size:10px;color:#5cc">Click blue hex to move</div>';
-        if(atHL.length)ah+='<div style="font-size:10px;color:#f66">Click red hex to attack</div>';
+        if(unit.moveLeft>0)ah+='<div style="font-size:10px;color:#2b6cff">Click blue hex to move</div>';
+        if(atHL.length)ah+='<div style="font-size:10px;color:#d23240">Click red hex to attack</div>';
         ap.innerHTML=ah;
     } else ap.style.display='none';
 }
@@ -1513,9 +2092,13 @@ function updateTrain(){
     const k=hK(sel.q,sel.r),tile=G.tiles[k];
     if(!tile||!tile.isCity||tile.owner!=='kitty'||unitAt(sel.q,sel.r)){p.style.display='none';return}
     p.style.display='block';let h='<h3>Train Unit</h3>';
+    // Check for forge discount
+    const discount=getForgeDiscount(sel.q,sel.r);
+    if(discount<1) h+='<div style="font-size:9px;color:#7c4dff;margin-bottom:3px">Forge nearby: 20% discount!</div>';
     Object.entries(F.kitty.units).forEach(([type,tmpl])=>{
         if(!G.unlocked[type])return;
-        h+=`<button class="ba bt" ${G.res.kitty>=tmpl.cost?'':'disabled'} onclick="doTrain('${type}',${sel.q},${sel.r})">${tmpl.ic} ${tmpl.n} — ${tmpl.cost} catnips<div style="font-size:9px;color:#667;margin-top:1px">${tmpl.d}</div></button>`;
+        let cost=Math.floor(tmpl.cost*discount);
+        h+=`<button class="ba bt" ${G.res.kitty>=cost?'':'disabled'} onclick="doTrain('${type}',${sel.q},${sel.r})">${tmpl.ic} ${tmpl.n} \u2014 ${cost} catnips<div style="font-size:9px;color:#4a3e6b;margin-top:1px">${tmpl.d}</div></button>`;
     });
     p.innerHTML=h;
 }
@@ -1524,11 +2107,11 @@ function updateForgeP(){
     const p=document.getElementById('frgp');if(!forgeOpen){p.style.display='none';return}
     p.style.display='block';let h="<h3>Smitty's Forge</h3>";
     FORGE.forEach((t,i)=>{
-        if(i<G.forgeLevel)h+=`<div style="font-size:10px;color:#4a4;margin:3px 0">✓ ${t.name} — ${t.desc}</div>`;
-        else if(i===G.forgeLevel)h+=`<button class="ba bf" ${G.res.kitty>=t.cost?'':'disabled'} onclick="doForge();updateUI();render()">${t.name} — ${t.cost} catnips<div style="font-size:9px;color:#778;margin-top:1px">${t.desc}</div></button>`;
-        else h+=`<div style="font-size:10px;color:#445;margin:3px 0">🔒 ${t.name}</div>`;
+        if(i<G.forgeLevel)h+=`<div style="font-size:10px;color:#4a7a5c;margin:3px 0">\u2713 ${t.name} \u2014 ${t.desc}</div>`;
+        else if(i===G.forgeLevel)h+=`<button class="ba bf" ${G.res.kitty>=t.cost?'':'disabled'} onclick="doForge();updateUI();render()">${t.name} \u2014 ${t.cost} catnips<div style="font-size:9px;color:#4a3e6b;margin-top:1px">${t.desc}</div></button>`;
+        else h+=`<div style="font-size:10px;color:#8a7f71;margin:3px 0">\ud83d\udd12 ${t.name}</div>`;
     });
-    if(G.forgeLevel>=FORGE.length)h+=`<div style="font-size:10px;color:#ff69b4;margin-top:4px">Forge complete.</div>`;
+    if(G.forgeLevel>=FORGE.length)h+=`<div style="font-size:10px;color:#ff4d9a;margin-top:4px">Forge complete.</div>`;
     p.innerHTML=h;
 }
 
@@ -1540,8 +2123,12 @@ function updateHeroP(){
     Object.keys(HEROES).forEach(hid=>{
         const unit=Object.values(G.units).find(u=>u.heroId===hid);
         const hero=HEROES[hid];
-        if(unit)h+=`<div style="font-size:10px;margin:1px 0;cursor:pointer;color:${hero.color}" onclick="centerOn(${unit.q},${unit.r})">${hero.ic} ${hero.name} ${unit.hp}/${unit.maxHp}${unit.level>1?' ★'+unit.level:''}</div>`;
-        else h+=`<div style="font-size:10px;margin:1px 0;color:#333;text-decoration:line-through">${hero.ic} ${hero.name} — fallen</div>`;
+        if(unit){
+            const expr=getHeroExpression(unit);
+            h+=`<div style="font-size:10px;margin:2px 0;cursor:pointer;color:${hero.color};display:flex;align-items:center;gap:3px" onclick="centerOn(${unit.q},${unit.r})">${portraitImg(hid,expr,22)} ${hero.name} ${unit.hp}/${unit.maxHp}${unit.level>1?' \u2605'+unit.level:''}</div>`;
+        } else {
+            h+=`<div style="font-size:10px;margin:1px 0;color:#8a7f71;text-decoration:line-through">${hero.ic} ${hero.name} \u2014 fallen</div>`;
+        }
     });
     p.innerHTML=h;
 }
@@ -1555,6 +2142,9 @@ function toggleDifficulty(){const order=['easy','normal','hard','crazy'];const i
 function doTrain(type,q,r){if(trainUnit('kitty',type,q,r)){updateVision();updateUI();render()}}
 function centerOn(q,r){const p=h2p(q,r);cam.x=-p.x*cam.z;cam.y=-p.y*cam.z;sel={q,r};selU=unitAt(q,r);if(selU&&selU.faction==='kitty'){mvHL=Object.values(getReach(selU));atHL=getAtk(selU).map(u=>({q:u.q,r:u.r}))}updateUI();render()}
 
+// ================================================================
+// INPUT
+// ================================================================
 // ================================================================
 // INPUT
 // ================================================================
@@ -1598,9 +2188,24 @@ function handleClick(hex){
     selU=null;sel=hex;mvHL=[];atHL=[];updateUI();render();
 }
 
+
 // ================================================================
-// START — preloads sprites before first render
+// START — preloads sprites, populates title screen
 // ================================================================
+function populateTitleEmblems(){
+    const container=document.getElementById('tsEmblems');
+    if(!container) return;
+    const facs=['kitty','ferret','meerkat','possum','crow','hyena'];
+    const names=['Kitty City','Ferret City','Meerkat Burrows','Possum Town',"Crow's Nest",'Hyena Heights'];
+    let html='';
+    facs.forEach((fac,i)=>{
+        const svg=EMBLEM_BUILDERS[fac]();
+        const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+        html+=`<div class="ts-emblem-cell"><img src="${url}" width="48" height="48"/><div class="en">${names[i]}</div></div>`;
+    });
+    container.innerHTML=html;
+}
+
 async function startGame(){
     document.getElementById('ts').style.display='none';
     document.getElementById('top-bar').style.display='flex';
@@ -1612,11 +2217,14 @@ async function startGame(){
     addLog('Spend catnips to train, research, and upgrade.','story');
     setupInput();
     cam.x=0;cam.y=0;
-    // Preload sprites then start
     await preloadSprites();
     startPlayerTurn();
     window.addEventListener('resize',render);
 }
+
+// Populate title screen on load
+document.addEventListener('DOMContentLoaded',populateTitleEmblems);
+
 </script>
 </body>
 </html>
