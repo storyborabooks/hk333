@@ -1194,8 +1194,13 @@ function applyHeroAuras(){
     eachUnit(G,'kitty',u=>{u._rally=0;u._heal=0});
     Object.values(G.units).forEach(u=>{
         if(!u.isHero||u.faction!=='kitty')return;
-        if(u.heroId==='hitty') hN(u.q,u.r).forEach(n=>{const a=unitAt(n.q,n.r);if(a&&a.faction==='kitty'&&a.id!==u.id)a._rally=1});
-        if(u.heroId==='pritty') hN(u.q,u.r).forEach(n=>{const a=unitAt(n.q,n.r);if(a&&a.faction==='kitty'&&a.id!==u.id)a._heal=2});
+        // Apply aura to same-hex stack members and adjacent units
+        const applyTo=ally=>{if(ally&&ally.faction==='kitty'&&ally.id!==u.id){
+            if(u.heroId==='hitty')ally._rally=1;
+            if(u.heroId==='pritty')ally._heal=2;
+        }};
+        unitsAt(u.q,u.r).forEach(applyTo);
+        hN(u.q,u.r).forEach(n=>unitsAt(n.q,n.r).forEach(applyTo));
     });
     eachUnit(G,'kitty',u=>{let h=(u._heal||0);if(G.fb.regen)h+=1;if(h>0)u.hp=Math.min(u.maxHp,u.hp+h)});
 }
@@ -1220,8 +1225,14 @@ function buildImp(type,q,r){
 // ================================================================
 // PATHFINDING
 
+function getStackMove(q,r){
+    const stack=unitsAt(q,r);if(!stack.length)return 0;
+    return Math.min(...stack.map(u=>u.moveLeft));
+}
 function getReach(unit){
     const reach={},vis={};
+    const myStack=unitsAt(unit.q,unit.r).filter(u=>u.faction===unit.faction);
+    const stackMv=Math.min(...myStack.map(u=>u.moveLeft));
     const q0=[{q:unit.q,r:unit.r,cost:0}];vis[hK(unit.q,unit.r)]=0;
     while(q0.length){
         q0.sort((a,b)=>a.cost-b.cost);const cur=q0.shift();
@@ -1229,11 +1240,15 @@ function getReach(unit){
             const k=hK(n.q,n.r),tile=G.tiles[k];if(!tile)return;
             let mc=tile.terrain.mc;if(mc<0)return;
             if(unit.type==='burrower'&&tile.terrain.id==='mountain')mc=1;
-            const blocker=unitAt(n.q,n.r);if(blocker&&blocker.faction!==unit.faction)return;
+            const there=unitsAt(n.q,n.r);
+            const enemyThere=there.some(u=>u.faction!==unit.faction);if(enemyThere)return;
+            const friendlyCount=there.filter(u=>u.faction===unit.faction).length;
             const nc=cur.cost+mc;
-            if(nc<=unit.moveLeft&&(vis[k]===undefined||nc<vis[k])){
+            if(nc<=stackMv&&(vis[k]===undefined||nc<vis[k])){
                 vis[k]=nc;
-                if(!blocker||blocker.id===unit.id)reach[k]={q:n.q,r:n.r,cost:nc};
+                // Can move here if: empty, or friendly stack with room for our stack
+                const canLand=friendlyCount+myStack.length<=STACK_MAX;
+                if(canLand||friendlyCount===0)reach[k]={q:n.q,r:n.r,cost:nc};
                 q0.push({q:n.q,r:n.r,cost:nc});
             }
         });
@@ -1244,7 +1259,15 @@ function getAtk(unit){
     if(unit.hasAttacked)return[];
     return Object.values(G.units).filter(o=>o.faction!==unit.faction&&hD({q:unit.q,r:unit.r},{q:o.q,r:o.r})<=unit.rng);
 }
-function unitAt(q,r){return Object.values(G.units).find(u=>u.q===q&&u.r===r)}
+const STACK_MAX=4;
+function unitsAt(q,r){return Object.values(G.units).filter(u=>u.q===q&&u.r===r)}
+function unitAt(q,r){
+    const stack=unitsAt(q,r);if(!stack.length)return undefined;
+    const hero=stack.find(u=>u.isHero);if(hero)return hero;
+    stack.sort((a,b)=>b.hp-a.hp);return stack[0];
+}
+function stackSize(q,r){return unitsAt(q,r).length}
+function stackATK(q,r,faction){return unitsAt(q,r).filter(u=>u.faction===faction).reduce((s,u)=>s+u.atk+(u._rally||0),0)}
 
 // ================================================================
 // COMBAT (updated unit type references)
@@ -1259,50 +1282,74 @@ function getCityDef(tile){
 }
 
 
+function spreadDamage(units,totalDmg){
+    // Spread damage evenly across stack, remainder to first units
+    if(!units.length)return;
+    const each=Math.floor(totalDmg/units.length);
+    let rem=totalDmg-each*units.length;
+    units.forEach(u=>{u.hp-=each;if(rem>0){u.hp--;rem--}});
+}
+
 function combat(atk,def){
     const g=G,dTile=g.tiles[hK(def.q,def.r)];
     const tDef=getCityDef(dTile);
-    let ap=atk.atk+(atk._rally||0)+(g.fb.mAtk&&atk.faction==='kitty'&&atk.rng<=1?g.fb.mAtk:0);
-    let dp=def.def+tDef+(g.fb.aDef&&def.faction==='kitty'?g.fb.aDef:0);
+    const atkStack=unitsAt(atk.q,atk.r).filter(u=>u.faction===atk.faction);
+    const defStack=unitsAt(def.q,def.r).filter(u=>u.faction===def.faction);
 
-    // Faction-specific attack bonuses
-    if(atk.type==='slinker'){const at=g.tiles[hK(atk.q,atk.r)];if(at&&at.terrain.id==='forest')ap+=3}
-    if(atk.type==='crusher'&&dTile&&dTile.isCity)ap+=3;
-    if(atk.heroId==='skitty'&&Math.random()<.25){ap*=2;addLog('Skitty panics — accidental devastation!','combat')}
-    if(atk.heroId==='shitty'){ap+=2;atk.hp-=1}
-    if(atk.type==='trickster')ap+=2; // trickster initiator bonus
-    // Warlord: +ATK as HP drops
-    if(atk.type==='warlord'){const missing=atk.maxHp-atk.hp;ap+=Math.floor(missing/3)}
-    // Howler debuff on defender
+    // Combined attack power from entire attacking stack
+    let ap=0;
+    atkStack.forEach(u=>{
+        let up=u.atk+(u._rally||0)+(g.fb.mAtk&&u.faction==='kitty'&&u.rng<=1?g.fb.mAtk:0);
+        if(u.type==='slinker'){const at=g.tiles[hK(u.q,u.r)];if(at&&at.terrain.id==='forest')up+=3}
+        if(u.type==='crusher'&&dTile&&dTile.isCity)up+=3;
+        if(u.heroId==='skitty'&&Math.random()<.25){up*=2;addLog('Skitty panics — accidental devastation!','combat')}
+        if(u.heroId==='shitty'){up+=2;u.hp-=1}
+        if(u.type==='trickster')up+=2;
+        if(u.type==='warlord'){const missing=u.maxHp-u.hp;up+=Math.floor(missing/3)}
+        ap+=up;
+    });
+
+    // Defender's total defense
+    let dp=def.def+tDef+(g.fb.aDef&&def.faction==='kitty'?g.fb.aDef:0);
     if(def.type!=='howler'){
         const nearHowlers=Object.values(g.units).filter(u=>u.type==='howler'&&u.faction===atk.faction&&hD({q:u.q,r:u.r},{q:def.q,r:def.r})<=1);
         if(nearHowlers.length)dp=Math.max(0,dp-1);
     }
-    // Phalanx buff
     const nearPhalanx=Object.values(g.units).filter(u=>u.type==='phalanx'&&u.faction===atk.faction&&hD({q:u.q,r:u.r},{q:atk.q,r:atk.r})<=1);
-    if(nearPhalanx.length&&atk.faction==='meerkat'){ap+=1;dp=Math.max(0,dp)}
+    if(nearPhalanx.length&&atk.faction==='meerkat'){ap+=1}
 
+    // Deal damage, spread across defending stack
     let dmg=Math.max(1,Math.round(ap-dp*.4+(Math.random()*2-.5)));
-    def.hp-=dmg;
-    addLog(`${atk.name} hits ${def.name} for ${dmg}`,'combat');
+    const atkLabel=atkStack.length>1?F[atk.faction].name+' stack ('+atkStack.length+')':atk.name;
+    const defLabel=defStack.length>1?F[def.faction].name+' stack ('+defStack.length+')':def.name;
+    spreadDamage(defStack,dmg);
+    addLog(`${atkLabel} hits ${defLabel} for ${dmg}`,'combat');
 
     // Playdead: survive first lethal hit
-    if(def.hp<=0&&def.type==='playdead'&&!def.fakerUsed){
-        def.hp=1;def.fakerUsed=true;
-        addLog(`${def.name} plays dead... then gets back up!`,'combat');
+    defStack.forEach(u=>{
+        if(u.hp<=0&&u.type==='playdead'&&!u.fakerUsed){u.hp=1;u.fakerUsed=true;addLog(`${u.name} plays dead... then gets back up!`,'combat')}
+    });
+
+    // Counter-attack: surviving defenders counter, damage spread across attacking stack
+    const defSurvivors=defStack.filter(u=>u.hp>0);
+    if(defSurvivors.length&&hD({q:atk.q,r:atk.r},{q:def.q,r:def.r})<=def.rng){
+        let cp=0;
+        defSurvivors.forEach(u=>{
+            let up=u.atk+(u._rally||0);
+            if(u.heroId==='gritty')up+=2;
+            if(u.type==='warlord'){const m=u.maxHp-u.hp;up+=Math.floor(m/3)}
+            cp+=up;
+        });
+        const avgAtkDef=atkStack.reduce((s,u)=>s+u.def,0)/atkStack.length;
+        const cd=Math.max(1,Math.round(cp*.5-avgAtkDef*(g.fb.aDef&&atk.faction==='kitty'?1+g.fb.aDef:1)*.3+Math.random()));
+        spreadDamage(atkStack,cd);
+        addLog(`${defLabel} counters for ${cd}`,'combat');
     }
 
-    // Counter-attack
-    if(def.hp>0&&hD({q:atk.q,r:atk.r},{q:def.q,r:def.r})<=def.rng){
-        let cp=def.atk+(def._rally||0);
-        if(def.heroId==='gritty')cp+=2;
-        if(def.type==='warlord'){const m=def.maxHp-def.hp;cp+=Math.floor(m/3)}
-        const cd=Math.max(1,Math.round(cp*.5-(atk.def+(g.fb.aDef&&atk.faction==='kitty'?g.fb.aDef:0))*.3+Math.random()));
-        atk.hp-=cd;addLog(`${def.name} counters for ${cd}`,'combat');
-    }
-
-    // Pickpocket steal
-    if(atk.type==='pickpocket'&&def.hp<=0){
+    // Pickpocket steal (any pickpocket in attacking stack)
+    const hasPickpocket=atkStack.some(u=>u.type==='pickpocket');
+    const anyDefDead=defStack.some(u=>u.hp<=0);
+    if(hasPickpocket&&anyDefDead){
         g.res[atk.faction]=(g.res[atk.faction]||0)+2;
         g.res[def.faction]=Math.max(0,(g.res[def.faction]||0)-2);
         addLog('Pickpocket steals 2 catnips!','event');
@@ -1315,12 +1362,18 @@ function combat(atk,def){
     const peaceTurns=PEACE_TURNS[difficulty]||0;
     if(g.turn<=peaceTurns){g.provoked[def.faction]=atk.faction}
 
-    // Deaths
-    if(def.hp<=0){addLog(`${def.name} (${F[def.faction].name}) defeated!`,'combat');atk.xp+=3;atk.kills++;checkLvl(atk);if(def.isHero)g.flags.heroKilled=true;delete g.units[def.id]}
-    if(atk.hp<=0){addLog(`${atk.name} (${F[atk.faction].name}) defeated!`,'combat');if(atk.isHero)g.flags.heroKilled=true;delete g.units[atk.id]}
-    else{atk.xp+=1;checkLvl(atk)}
+    // Clean up deaths in both stacks
+    defStack.forEach(u=>{
+        if(u.hp<=0){addLog(`${u.name} (${F[u.faction].name}) defeated!`,'combat');atk.xp+=3;atk.kills++;checkLvl(atk);if(u.isHero)g.flags.heroKilled=true;delete g.units[u.id]}
+    });
+    atkStack.forEach(u=>{
+        if(u.hp<=0){addLog(`${u.name} (${F[u.faction].name}) defeated!`,'combat');if(u.isHero)g.flags.heroKilled=true;delete g.units[u.id]}
+    });
+    const atkSurvivors=atkStack.filter(u=>g.units[u.id]);
+    if(atkSurvivors.length){atkSurvivors.forEach(u=>{u.xp+=1;checkLvl(u)})}
 
-    atk.hasAttacked=true;atk.moveLeft=0;
+    // Mark all attackers as done
+    atkStack.forEach(u=>{if(g.units[u.id]){u.hasAttacked=true;u.moveLeft=0}});
 
     // First enemy seen
     if(!g.flags.firstEnemySeen){
@@ -1344,12 +1397,13 @@ function checkCap(unit){
         tile.owner=unit.faction;
         let hitCount=0;
         hN(tile.q,tile.r).forEach(n=>{
-            const eu=unitAt(n.q,n.r);
-            if(eu&&eu.faction!==unit.faction){
-                eu.hp-=3;hitCount++;
-                if(eu.hp<=0){addLog(eu.name+' destroyed by ordnance explosion!','combat');if(eu.isHero)G.flags.heroKilled=true;delete G.units[eu.id]}
-                else addLog(eu.name+' takes 3 damage from ordnance!','combat');
-            }
+            unitsAt(n.q,n.r).forEach(eu=>{
+                if(eu.faction!==unit.faction){
+                    eu.hp-=3;hitCount++;
+                    if(eu.hp<=0){addLog(eu.name+' destroyed by ordnance explosion!','combat');if(eu.isHero)G.flags.heroKilled=true;delete G.units[eu.id]}
+                    else addLog(eu.name+' takes 3 damage from ordnance!','combat');
+                }
+            });
         });
         if(hitCount>0) addLog('Ordnance pile explodes! '+hitCount+' enemies hit.','event');
         return;
@@ -1361,17 +1415,18 @@ function checkCap(unit){
     }
     if(!tile.isCity||tile.owner===unit.faction)return;
     const prev=tile.owner;
-    // Garrison combat: enemy cities deal damage to attacking unit
+    // Garrison combat: enemy cities deal damage spread across attacking stack
     if(prev){
         const garDmg=2+(tile.cityLevel||0)*2;
-        unit.hp-=garDmg;
-        addLog(unit.name+' takes '+garDmg+' garrison damage from '+(tile.cityName||'City')+'!','combat');
-        if(unit.hp<=0){
-            addLog(unit.name+' destroyed by '+tile.cityName+'\'s garrison!','combat');
-            if(unit.isHero)G.flags.heroKilled=true;
-            delete G.units[unit.id];
-            return;
-        }
+        const myStack=unitsAt(unit.q,unit.r).filter(u=>u.faction===unit.faction);
+        spreadDamage(myStack,garDmg);
+        addLog((myStack.length>1?F[unit.faction].name+' stack':unit.name)+' takes '+garDmg+' garrison damage from '+(tile.cityName||'City')+'!','combat');
+        // Remove any units killed by garrison
+        myStack.forEach(u=>{
+            if(u.hp<=0){addLog(u.name+' destroyed by '+tile.cityName+'\'s garrison!','combat');if(u.isHero)G.flags.heroKilled=true;delete G.units[u.id]}
+        });
+        // If entire stack wiped, city stays
+        if(!unitsAt(unit.q,unit.r).some(u=>u.faction===unit.faction))return;
     }
     tile.owner=unit.faction;
     addLog(F[unit.faction].name+' captures '+(tile.cityName||'Village')+'!','event');
@@ -1394,7 +1449,7 @@ function scavengeRuin(q,r){
         const types=['fiter','bloker'];const type=types[Math.floor(Math.random()*types.length)];
         const nbs=hN(q,r);let placed=false;
         for(const nb of nbs){
-            if(G.tiles[hK(nb.q,nb.r)]&&G.tiles[hK(nb.q,nb.r)].terrain.mc>0&&!unitAt(nb.q,nb.r)){
+            if(G.tiles[hK(nb.q,nb.r)]&&G.tiles[hK(nb.q,nb.r)].terrain.mc>0&&stackSize(nb.q,nb.r)<STACK_MAX){
                 const tmpl=F.kitty.units[type];const id='u'+(G.nextUid++);
                 G.units[id]={id,faction:'kitty',type,q:nb.q,r:nb.r,hp:tmpl.hp,maxHp:tmpl.hp,atk:tmpl.atk,def:tmpl.def,
                     mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,moveLeft:0,hasAttacked:true,
@@ -1498,6 +1553,9 @@ function runFactionAI(fac){
                 // Faction-specific movement preferences
                 if(unit.type==='slinker'&&tile&&tile.terrain.id==='forest')s+=5;
                 if(tile)s+=tile.terrain.def;
+                // Stacking: prefer joining friendly units (but respect stack max)
+                const friendsHere=unitsAt(data.q,data.r).filter(u=>u.faction===fac);
+                if(friendsHere.length>0&&friendsHere.length<STACK_MAX)s+=6;
                 if(s>bestS){bestS=s;bestK=key}
             });
             if(bestK){const d=reach[bestK];unit.q=d.q;unit.r=d.r;unit.moveLeft=0;checkCap(unit)}
@@ -1524,7 +1582,7 @@ function runFactionAI(fac){
     // Train units
     const myCities=Object.values(g.tiles).filter(t=>t.isCity&&t.owner===fac);
     myCities.forEach(city=>{
-        if(unitAt(city.q,city.r))return;
+        if(stackSize(city.q,city.r)>=STACK_MAX)return;
         const types=Object.keys(F[fac].units);
         let pick;
         // Meerkats spam sentries
@@ -1597,7 +1655,7 @@ function getForgeDiscount(q,r){
 function trainUnit(fac,type,q,r){
     const tmpl=F[fac].units[type];if(!tmpl)return false;
     let cost=tmpl.cost;const discount=getForgeDiscount(q,r);cost=Math.floor(cost*discount);
-    if((G.res[fac]||0)<cost)return false;if(unitAt(q,r))return false;
+    if((G.res[fac]||0)<cost)return false;if(stackSize(q,r)>=STACK_MAX)return false;
     G.res[fac]-=cost;const id='u'+(G.nextUid++);
     G.units[id]={id,faction:fac,type,q,r,hp:tmpl.hp,maxHp:tmpl.hp,
         atk:tmpl.atk+(fac==='kitty'&&tmpl.rng<=1?G.fb.mAtk:0),def:tmpl.def+(fac==='kitty'?G.fb.aDef:0),
@@ -1800,33 +1858,52 @@ function render(){
         if(imp){X.fillStyle='#ddd';X.font='9px Arial';X.fillText(IMP[imp].icon,p.x+HEX*.3,p.y+HEX*.3)}
     });
 
+    // Render units — one sprite per hex (lead unit), with stack badge
+    const rendered=new Set();
     Object.values(G.units).forEach(unit=>{
-        const tile=G.tiles[hK(unit.q,unit.r)];
+        const hk=hK(unit.q,unit.r);
+        if(rendered.has(hk))return;
+        const tile=G.tiles[hk];
         if(!tile||(!tile.visible&&unit.faction!=='kitty'))return;
-        const p=h2p(unit.q,unit.r),fac=F[unit.faction],sz=unit.isHero?13:10;
+        const lead=unitAt(unit.q,unit.r);if(!lead)return;
+        rendered.add(hk);
+        const stack=unitsAt(unit.q,unit.r);
+        const p=h2p(lead.q,lead.r),fac=F[lead.faction],sz=lead.isHero?13:10;
 
-        if(selU&&unit.id===selU.id){X.beginPath();X.arc(p.x,p.y,sz+3,0,Math.PI*2);X.strokeStyle='#fff';X.lineWidth=2;X.stroke()}
+        if(selU&&stack.some(u=>u.id===selU.id)){X.beginPath();X.arc(p.x,p.y,sz+3,0,Math.PI*2);X.strokeStyle='#fff';X.lineWidth=2;X.stroke()}
 
-        let spriteKey=unit.isHero?'hero.'+unit.heroId:unit.faction+'.'+unit.type;
+        let spriteKey=lead.isHero?'hero.'+lead.heroId:lead.faction+'.'+lead.type;
         const sprite=SPRITES[spriteKey];
         if(sprite&&spritesReady){
-            const drawSz=unit.isHero?26:22;
+            const drawSz=lead.isHero?26:22;
             X.drawImage(sprite,p.x-drawSz/2,p.y-drawSz/2-2,drawSz,drawSz);
         } else {
             X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);
-            X.fillStyle=unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fac.dk):fac.dk;
-            X.fill();X.strokeStyle=fac.col;X.lineWidth=unit.isHero?2.5:1.5;X.stroke();
-            X.fillStyle='#fff';X.font=(unit.isHero?13:11)+'px Arial';X.textAlign='center';X.textBaseline='middle';
-            X.fillText(unit.icon,p.x,p.y);
+            X.fillStyle=lead.isHero&&lead.faction==='kitty'?(HEROES[lead.heroId]?.color||fac.dk):fac.dk;
+            X.fill();X.strokeStyle=fac.col;X.lineWidth=lead.isHero?2.5:1.5;X.stroke();
+            X.fillStyle='#fff';X.font=(lead.isHero?13:11)+'px Arial';X.textAlign='center';X.textBaseline='middle';
+            X.fillText(lead.icon,p.x,p.y);
         }
 
-        const pct=unit.hp/unit.maxHp,bw=sz*1.3,bx=p.x-bw/2,by=p.y+sz+2;
+        // HP bar — show average HP across stack
+        const avgPct=stack.reduce((s,u)=>s+u.hp/u.maxHp,0)/stack.length;
+        const bw=sz*1.3,bx=p.x-bw/2,by=p.y+sz+2;
         X.fillStyle='#222';X.fillRect(bx,by,bw,2);
-        X.fillStyle=pct>.5?'#0e6':pct>.25?'#fa0':'#f14';X.fillRect(bx,by,bw*pct,2);
+        X.fillStyle=avgPct>.5?'#0e6':avgPct>.25?'#fa0':'#f14';X.fillRect(bx,by,bw*avgPct,2);
 
-        if(unit.level>1){X.fillStyle='#ffeb3b';X.font='bold 6px Arial';X.textAlign='center';X.textBaseline='middle';X.fillText('\u2605'+unit.level,p.x+sz,p.y-sz+2)}
+        if(lead.level>1){X.fillStyle='#ffeb3b';X.font='bold 6px Arial';X.textAlign='center';X.textBaseline='middle';X.fillText('\u2605'+lead.level,p.x+sz,p.y-sz+2)}
 
-        if(unit.moveLeft<=0&&unit.hasAttacked&&unit.faction==='kitty'){X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);X.fillStyle='rgba(0,0,0,.35)';X.fill()}
+        // Stack count badge
+        if(stack.length>1){
+            const bx2=p.x-sz-2,by2=p.y-sz-2;
+            X.beginPath();X.arc(bx2,by2,6,0,Math.PI*2);X.fillStyle=fac.col;X.fill();
+            X.fillStyle='#fff';X.font='bold 8px Arial';X.textAlign='center';X.textBaseline='middle';
+            X.fillText(stack.length,bx2,by2);
+        }
+
+        // Exhausted overlay
+        const allDone=stack.filter(u=>u.faction==='kitty').every(u=>u.moveLeft<=0&&u.hasAttacked);
+        if(allDone&&lead.faction==='kitty'){X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);X.fillStyle='rgba(0,0,0,.35)';X.fill()}
     });
     X.restore();renderMM();
 }
@@ -1928,23 +2005,40 @@ function updateSel(){
 
     const imp=G.improvements[k];if(imp)h+='<div class="sr"><span class="l">Improve.</span><span class="v">'+IMP[imp].icon+' '+IMP[imp].name+'</span></div>';
 
-    const unit=unitAt(sel.q,sel.r);
+    const stack=unitsAt(sel.q,sel.r);
+    const unit=stack.length?unitAt(sel.q,sel.r):null;
     if(unit&&(unit.faction==='kitty'||tile.visible)){
-        const fc=F[unit.faction];
         h+='<div style="margin-top:5px;border-top:1px solid rgba(26,19,48,0.15);padding-top:5px">';
-        if(unit.isHero&&unit.faction==='kitty'){
-            const expr=getHeroExpression(unit);
-            h+=portraitImg(unit.heroId,expr,48);
+        if(stack.length>1){
+            const totalAtk=stack.reduce((s,u)=>s+u.atk+(u._rally||0),0);
+            const stackMv=Math.min(...stack.map(u=>u.moveLeft));
+            h+='<div style="font-weight:bold;font-size:11px;color:#ff4d9a;margin-bottom:3px">'+emblemImg(unit.faction,16)+' Stack ('+stack.length+'/'+STACK_MAX+')</div>';
+            h+='<div class="sr"><span class="l">Combined ATK</span><span class="v" style="color:#c45050">'+totalAtk+'</span></div>';
+            h+='<div class="sr"><span class="l">Stack Move</span><span class="v">'+stackMv+'</span></div>';
+            h+='<div style="margin-top:3px">';
         }
-        h+='<div style="color:'+(unit.isHero&&unit.faction==='kitty'?(HEROES[unit.heroId]?.color||fc.col):fc.col)+';font-weight:bold;font-size:12px">'+emblemImg(unit.faction,16)+unit.icon+' '+unit.name+(unit.level>1?' \u2605'+unit.level:'')+'</div>';
-        h+='<div style="font-size:9px;color:#4a3e6b">'+fc.name+(unit.isHero?' \u2014 Hero':'')+'</div>';
-        if(unit.isHero&&HEROES[unit.heroId])h+='<div style="font-size:9px;color:#ffab00;margin:1px 0">'+HEROES[unit.heroId].ability+': '+HEROES[unit.heroId].abilityDesc+'</div>';
-        h+='<div class="sr"><span class="l">HP</span><span class="v">'+unit.hp+'/'+unit.maxHp+'</span></div>';
-        h+='<div class="sr"><span class="l">ATK</span><span class="v">'+unit.atk+(unit._rally?' (+1)':'')+'</span></div>';
-        h+='<div class="sr"><span class="l">DEF</span><span class="v">'+unit.def+'</span></div>';
-        h+='<div class="sr"><span class="l">Move</span><span class="v">'+unit.moveLeft+'/'+unit.mv+'</span></div>';
-        h+='<div class="sr"><span class="l">Range</span><span class="v">'+unit.rng+'</span></div>';
-        h+='<div class="sr"><span class="l">Kills</span><span class="v">'+unit.kills+'</span></div></div>';
+        stack.forEach((u,i)=>{
+            const fc=F[u.faction];
+            if(stack.length>1&&i>0)h+='<div style="border-top:1px dashed rgba(26,19,48,0.1);margin-top:3px;padding-top:3px">';
+            if(u.isHero&&u.faction==='kitty'){
+                const expr=getHeroExpression(u);
+                h+=portraitImg(u.heroId,expr,stack.length>1?32:48);
+            }
+            h+='<div style="color:'+(u.isHero&&u.faction==='kitty'?(HEROES[u.heroId]?.color||fc.col):fc.col)+';font-weight:bold;font-size:'+(stack.length>1?'10':'12')+'px">'+u.icon+' '+u.name+(u.level>1?' \u2605'+u.level:'')+'</div>';
+            if(stack.length===1)h+='<div style="font-size:9px;color:#4a3e6b">'+fc.name+(u.isHero?' \u2014 Hero':'')+'</div>';
+            if(u.isHero&&HEROES[u.heroId])h+='<div style="font-size:9px;color:#ffab00;margin:1px 0">'+HEROES[u.heroId].ability+': '+HEROES[u.heroId].abilityDesc+'</div>';
+            h+='<div class="sr"><span class="l">HP</span><span class="v">'+u.hp+'/'+u.maxHp+'</span></div>';
+            h+='<div class="sr"><span class="l">ATK</span><span class="v">'+u.atk+(u._rally?' (+1)':'')+'</span></div>';
+            h+='<div class="sr"><span class="l">DEF</span><span class="v">'+u.def+'</span></div>';
+            if(stack.length===1){
+                h+='<div class="sr"><span class="l">Move</span><span class="v">'+u.moveLeft+'/'+u.mv+'</span></div>';
+                h+='<div class="sr"><span class="l">Range</span><span class="v">'+u.rng+'</span></div>';
+                h+='<div class="sr"><span class="l">Kills</span><span class="v">'+u.kills+'</span></div>';
+            }
+            if(stack.length>1&&i>0)h+='</div>';
+        });
+        if(stack.length>1)h+='</div>';
+        h+='</div>';
     }
 
     if(tile.isCity&&tile.owner==='kitty'&&tile.visible){
@@ -1983,8 +2077,9 @@ function updateTrain(){
     const p=document.getElementById('trnp');
     if(!sel){p.style.display='none';return}
     const k=hK(sel.q,sel.r),tile=G.tiles[k];
-    if(!tile||!tile.isCity||tile.owner!=='kitty'||unitAt(sel.q,sel.r)){p.style.display='none';return}
-    p.style.display='block';let h='<h3>Train Unit</h3>';
+    if(!tile||!tile.isCity||tile.owner!=='kitty'||stackSize(sel.q,sel.r)>=STACK_MAX){p.style.display='none';return}
+    const curStack=stackSize(sel.q,sel.r);
+    p.style.display='block';let h='<h3>Train Unit'+(curStack>0?' ('+curStack+'/'+STACK_MAX+')':'')+'</h3>';
     const discount=getForgeDiscount(sel.q,sel.r);
     Object.entries(F.kitty.units).forEach(([type,tmpl])=>{
         if(!G.unlocked[type])return;
@@ -2056,7 +2151,10 @@ function setupInput(){
 function handleClick(hex){
     const k=hK(hex.q,hex.r),tile=G.tiles[k],clicked=unitAt(hex.q,hex.r);
     if(selU&&mvHL.find(h=>h.q===hex.q&&h.r===hex.r)){
-        selU.q=hex.q;selU.r=hex.r;selU.moveLeft-=Math.max(1,tile.terrain.mc);if(selU.moveLeft<0)selU.moveLeft=0;
+        // Move entire stack
+        const myStack=unitsAt(selU.q,selU.r).filter(u=>u.faction===selU.faction);
+        const moveCost=Math.max(1,tile.terrain.mc);
+        myStack.forEach(u=>{u.q=hex.q;u.r=hex.r;u.moveLeft-=moveCost;if(u.moveLeft<0)u.moveLeft=0});
         checkCap(selU);updateVision();if(G.gameOver)return;
         if(!G.flags.firstEnemySeen){Object.values(G.units).forEach(fu=>{if(fu.faction!=='kitty'&&tile.visible&&hD({q:selU.q,r:selU.r},{q:fu.q,r:fu.r})<=3)G.flags.firstEnemySeen=true})}
         mvHL=Object.values(getReach(selU));atHL=getAtk(selU).map(u=>({q:u.q,r:u.r}));sel=hex;updateUI();render();checkStory();return;
