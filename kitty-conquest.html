@@ -1019,12 +1019,12 @@ const F={
 
 const HERO_COOLDOWN=5;
 const HEROES={
-    hitty: {name:'Hitty Kitty', ic:'😼',hp:14,atk:5,def:2,mv:2,rng:1,ability:'Rally',abilityDesc:'Adjacent allies +1 ATK',color:'#ff69b4',summonCost:18},
-    gritty:{name:'Gritty Kitty',ic:'😾',hp:16,atk:4,def:3,mv:2,rng:1,ability:'Retaliate',abilityDesc:'+2 counter-attack dmg',color:'#e94560',summonCost:18},
-    witty: {name:'Witty Kitty', ic:'🧐',hp:9, atk:2,def:1,mv:2,rng:2,ability:'Foresight',abilityDesc:'+2 vision range',color:'#2196f3',summonCost:16},
-    pritty:{name:'Pritty Kitty',ic:'💅',hp:10,atk:2,def:2,mv:2,rng:1,ability:'Inspire',abilityDesc:'Adjacent allies heal 2/turn',color:'#e040fb',summonCost:16},
-    skitty:{name:'Skitty Kitty',ic:'😰',hp:8, atk:2,def:1,mv:3,rng:1,ability:'Panic',abilityDesc:'25% chance 2x damage',color:'#ffc107',summonCost:15},
-    shitty:{name:'Shitty Kitty',ic:'😒',hp:11,atk:4,def:1,mv:2,rng:1,ability:'Reckless',abilityDesc:'+2 ATK, 1 self-dmg',color:'#795548',summonCost:15},
+    hitty: {name:'Hitty Kitty', ic:'😼',hp:14,atk:5,def:2,mv:2,rng:1,ability:'Rally',abilityDesc:'Adjacent allies +1 ATK',color:'#ff69b4',summonCost:18,homeCity:'Paw Crossing'},
+    gritty:{name:'Gritty Kitty',ic:'😾',hp:16,atk:4,def:3,mv:2,rng:1,ability:'Retaliate',abilityDesc:'+2 counter-attack dmg',color:'#e94560',summonCost:18,homeCity:'Scratch Post'},
+    witty: {name:'Witty Kitty', ic:'🧐',hp:9, atk:2,def:1,mv:2,rng:2,ability:'Foresight',abilityDesc:'+2 vision range',color:'#2196f3',summonCost:16,homeCity:'Whisker Village'},
+    pritty:{name:'Pritty Kitty',ic:'💅',hp:10,atk:2,def:2,mv:2,rng:1,ability:'Inspire',abilityDesc:'Adjacent allies heal 2/turn',color:'#e040fb',summonCost:16,homeCity:'Catnip Glen'},
+    skitty:{name:'Skitty Kitty',ic:'😰',hp:8, atk:2,def:1,mv:3,rng:1,ability:'Panic',abilityDesc:'25% chance 2x damage',color:'#ffc107',summonCost:15,homeCity:'Mousehole'},
+    shitty:{name:'Shitty Kitty',ic:'😒',hp:11,atk:4,def:1,mv:2,rng:1,ability:'Reckless',abilityDesc:'+2 ATK, 1 self-dmg',color:'#795548',summonCost:15,homeCity:'The Litterbox'},
 };
 
 const FORGE=[
@@ -1170,7 +1170,7 @@ function createGame(){
     const aiFacs=['ferret','meerkat','possum','crow','hyena'];const res={};aiFacs.forEach(f=>res[f]=10);res.kitty=12;
     return{tiles,units,turn:1,currentFaction:'kitty',res,nextUid:uid,log:[],gameOver:false,
         forgeLevel:0,fb:{mAtk:0,aDef:0,regen:0},unlocked:{fiter:true,bloker:true,shoter:false,crusher:false},
-        flags:{},firedEvents:new Set(),improvements:{},grudges:{},provoked:{},capturedCaps:0,heroDeathTurn:{}};
+        flags:{},firedEvents:new Set(),improvements:{},grudges:{},provoked:{},capturedCaps:0,heroDeathTurn:{},mayorStats:{}};
 }
 
 function updateVision(){
@@ -1185,6 +1185,8 @@ function updateVision(){
     Object.values(G.tiles).forEach(t=>{
         if(t.isCity&&t.owner==='kitty'){
             let vr=2;if(G.improvements[hK(t.q,t.r)]==='watchtower')vr=4;
+            // Mayor vision bonus
+            if(t.mayor){const home=isMayorHome(t.mayor,t);vr+=home?2:1}
             Object.values(G.tiles).forEach(t2=>{if(hD({q:t.q,r:t.r},{q:t2.q,r:t2.r})<=vr){t2.visible=true;t2.explored=true}});
         }
     });
@@ -1279,8 +1281,15 @@ function getCityDef(tile){
     if(!tile)return 0;
     if(!tile.isCity)return tile.terrain.def;
     let d=tile.terrain.def+(tile.cityLevel||0);
-    const g=unitAt(tile.q,tile.r);
-    if(g&&g.isHero&&tile.owner===g.faction)d*=2;
+    // Mayor bonus
+    if(tile.mayor){
+        const home=isMayorHome(tile.mayor,tile);
+        d+=home?4:2;
+    } else {
+        // Small passive bonus for hero standing on city
+        const g=unitAt(tile.q,tile.r);
+        if(g&&g.isHero&&tile.owner===g.faction)d+=1;
+    }
     return d;
 }
 
@@ -1431,8 +1440,13 @@ function checkCap(unit){
         // If entire stack wiped, city stays
         if(!unitsAt(unit.q,unit.r).some(u=>u.faction===unit.faction))return;
     }
+    // Expel mayor before ownership changes
+    if(tile.mayor)expelMayor(tile);
     tile.owner=unit.faction;
     addLog(F[unit.faction].name+' captures '+(tile.cityName||'Village')+'!','event');
+    // Exhaust all capturing units
+    const capStack=unitsAt(unit.q,unit.r).filter(u=>u.faction===unit.faction);
+    capStack.forEach(u=>{u.moveLeft=0;u.hasAttacked=true});
     if(!prev&&unit.faction==='kitty')G.flags.firstVillage=true;
     if(tile.isCapital&&prev&&prev!==unit.faction){
         if(unit.faction==='kitty'){G.capturedCaps++;G.flags.firstCapCaptured=true;if(G.capturedCaps>=5)endGame('kitty')}
@@ -1644,7 +1658,17 @@ function pickTarget(fac){
 function collectIncome(fac){
     let inc=0;
     Object.values(G.tiles).forEach(t=>{
-        if(t.isCity&&t.owner===fac){let ci=t.prod;const gar=unitAt(t.q,t.r);if(gar&&gar.faction===fac&&gar.isHero)ci*=2;inc+=ci}
+        if(t.isCity&&t.owner===fac){
+            let ci=t.prod;
+            if(t.mayor){
+                const home=isMayorHome(t.mayor,t);
+                ci+=home?4:2;
+            } else {
+                const gar=unitAt(t.q,t.r);
+                if(gar&&gar.faction===fac&&gar.isHero)ci+=1;
+            }
+            inc+=ci;
+        }
         if(t.isCafe&&t.owner===fac) inc+=3;
     });
     G.res[fac]=(G.res[fac]||0)+inc;
@@ -1705,6 +1729,7 @@ function doSummon(heroId,q,r){if(summonHero(heroId,q,r)){updateVision();applyHer
 // UNIT SPLITTING
 function startSplit(unitId){
     const u=G.units[unitId];if(!u)return;
+    if(u.moveLeft<1)return; // Must have movement to split
     const stack=unitsAt(u.q,u.r).filter(s=>s.faction===u.faction);
     if(stack.length<2)return;
     splitUnit=u;splitMode=true;
@@ -1733,6 +1758,91 @@ function executeSplit(hex){
     sel={q:hex.q,r:hex.r};selU=u;
     mvHL=Object.values(getReach(u));atHL=getAtk(u).map(a=>({q:a.q,r:a.r}));
     applyHeroAuras();updateVision();updateUI();render();
+}
+
+// MAYOR SYSTEM
+function isMayorHome(heroId,tile){return tile&&tile.cityName===HEROES[heroId]?.homeCity}
+function isMayorAnywhere(heroId){return Object.values(G.tiles).some(t=>t.mayor===heroId)}
+function getMayorCity(heroId){return Object.values(G.tiles).find(t=>t.mayor===heroId)}
+
+function makeMayor(unitId){
+    const u=G.units[unitId];if(!u||!u.isHero||u.faction!=='kitty')return false;
+    const k=hK(u.q,u.r),tile=G.tiles[k];
+    if(!tile||!tile.isCity||tile.owner!=='kitty')return false;
+    if(tile.mayor)return false; // city already has a mayor
+    tile.mayor=u.heroId;
+    // Store hero stats for recall
+    G.mayorStats=G.mayorStats||{};
+    G.mayorStats[u.heroId]={hp:u.hp,maxHp:u.maxHp,atk:u.atk,def:u.def,xp:u.xp,level:u.level,kills:u.kills};
+    delete G.units[unitId];
+    const home=isMayorHome(u.heroId,tile);
+    addLog(HEROES[u.heroId].name+' becomes mayor of '+tile.cityName+'!'+(home?' Home city bonus active!':''),'event');
+    applyHeroAuras();updateVision();updateUI();render();
+    return true;
+}
+
+function recallMayor(q,r){
+    const k=hK(q,r),tile=G.tiles[k];
+    if(!tile||!tile.mayor)return false;
+    if(tile.owner!=='kitty')return false;
+    if(stackSize(q,r)>=STACK_MAX)return false;
+    const heroId=tile.mayor;
+    const hero=HEROES[heroId];if(!hero)return false;
+    const stats=G.mayorStats&&G.mayorStats[heroId]?G.mayorStats[heroId]:{};
+    const id='u'+(G.nextUid++);
+    let atk=stats.atk||hero.atk,def=stats.def||hero.def;
+    G.units[id]={id,faction:'kitty',type:'hero',q,r,
+        hp:stats.hp||hero.hp,maxHp:stats.maxHp||hero.hp,
+        atk,def,mv:hero.mv,maxMv:hero.mv,rng:hero.rng,
+        moveLeft:0,hasAttacked:true,
+        icon:hero.ic,name:hero.name,isHero:true,heroId,
+        xp:stats.xp||0,level:stats.level||1,kills:stats.kills||0,fakerUsed:false};
+    tile.mayor=null;
+    if(G.mayorStats)delete G.mayorStats[heroId];
+    addLog(hero.name+' recalled from '+tile.cityName+'. Ready for duty next turn.','event');
+    applyHeroAuras();updateVision();updateUI();render();
+    return true;
+}
+
+function expelMayor(tile){
+    if(!tile||!tile.mayor)return;
+    const heroId=tile.mayor;
+    const hero=HEROES[heroId];if(!hero)return;
+    const stats=G.mayorStats&&G.mayorStats[heroId]?G.mayorStats[heroId]:{};
+    tile.mayor=null;
+    if(G.mayorStats)delete G.mayorStats[heroId];
+    // Find best adjacent tile: friendly territory preferred, passable, room in stack
+    const candidates=hN(tile.q,tile.r).filter(n=>{
+        const nt=G.tiles[hK(n.q,n.r)];if(!nt)return false;
+        if(nt.terrain.mc<0)return false;
+        const there=unitsAt(n.q,n.r);
+        if(there.some(u=>u.faction!=='kitty'))return false;
+        if(there.filter(u=>u.faction==='kitty').length>=STACK_MAX)return false;
+        return true;
+    });
+    // Sort: prefer friendly territory, then empty
+    candidates.sort((a,b)=>{
+        const at=G.tiles[hK(a.q,a.r)],bt=G.tiles[hK(b.q,b.r)];
+        const aFriendly=at.owner==='kitty'?1:0,bFriendly=bt.owner==='kitty'?1:0;
+        return bFriendly-aFriendly;
+    });
+    if(candidates.length>0){
+        const dest=candidates[0];
+        const id='u'+(G.nextUid++);
+        G.units[id]={id,faction:'kitty',type:'hero',q:dest.q,r:dest.r,
+            hp:stats.hp||hero.hp,maxHp:stats.maxHp||hero.hp,
+            atk:stats.atk||hero.atk,def:stats.def||hero.def,
+            mv:hero.mv,maxMv:hero.mv,rng:hero.rng,
+            moveLeft:0,hasAttacked:true,
+            icon:hero.ic,name:hero.name,isHero:true,heroId,
+            xp:stats.xp||0,level:stats.level||1,kills:stats.kills||0,fakerUsed:false};
+        addLog(hero.name+' expelled from '+tile.cityName+'! Retreats to nearby tile.','combat');
+    } else {
+        // No valid tile, hero dies
+        G.heroDeathTurn[heroId]=G.turn;
+        G.flags.heroKilled=true;
+        addLog(hero.name+' perishes in the fall of '+tile.cityName+'!','combat');
+    }
 }
 
 function upgradeCity(q,r){
@@ -1922,6 +2032,12 @@ function render(){
             X.fillStyle=tile.isCapital?'#ffd700':oc;
             X.font=tile.isCapital?'bold 12px Arial':'10px Arial';
             X.fillText(tile.isCapital?'\u2605':'\u25cf',p.x,p.y-HEX*.38);
+            // Mayor indicator
+            if(tile.mayor){
+                const home=isMayorHome(tile.mayor,tile);
+                X.fillStyle=home?'#ff9800':'#4a7a5c';X.font='bold 7px Arial';
+                X.fillText('\u265a',p.x+HEX*.35,p.y-HEX*.35);
+            }
             X.fillStyle='#887';X.font='6px Arial';
             const lvl=(tile.cityLevel||0);
             X.fillText((tile.cityName||'')+(lvl>0?' ('+lvl+')':''),p.x,p.y+HEX*.58);
@@ -2055,12 +2171,25 @@ function updateSel(){
     let h='<h3>'+tile.terrain.name+(tile.isCity?' \u2014 '+(tile.cityName||'City'):'')+'</h3>';
     if(tile.isCity){
         const ow=tile.owner?F[tile.owner].name:'Neutral';
-        const gar=unitAt(tile.q,tile.r),hg=gar&&gar.isHero&&gar.faction===tile.owner;
-        const ei=hg?tile.prod*2:tile.prod,cd=getCityDef(tile);
+        const cd=getCityDef(tile);
+        // Calculate displayed income
+        let ei=tile.prod;
+        if(tile.mayor){const home=isMayorHome(tile.mayor,tile);ei+=home?4:2}
+        else{const gar=unitAt(tile.q,tile.r);if(gar&&gar.isHero&&tile.owner===gar.faction)ei+=1}
         h+='<div class="sr"><span class="l">Owner</span><span class="v" style="color:'+(tile.owner?F[tile.owner].col:'#888')+'">'+(tile.owner?emblemImg(tile.owner,16):'')+ow+'</span></div>';
         h+='<div class="sr"><span class="l">Level</span><span class="v">'+(tile.cityLevel||0)+'</span></div>';
-        h+='<div class="sr"><span class="l">Income</span><span class="v">'+ei+'/turn'+(hg?' (2x)':'')+'</span></div>';
-        h+='<div class="sr"><span class="l">Defense</span><span class="v">+'+cd+(hg?' (2x)':'')+'</span></div>';
+        // Mayor info
+        if(tile.mayor&&tile.owner==='kitty'){
+            const mHero=HEROES[tile.mayor];
+            const home=isMayorHome(tile.mayor,tile);
+            h+='<div style="margin:4px 0;padding:4px;background:rgba(255,77,154,0.08);border-radius:4px">';
+            h+=portraitImg(tile.mayor,'neutral',28)+' <span style="font-weight:bold;color:'+mHero.color+'">Mayor: '+mHero.name+'</span>';
+            if(home)h+='<div style="font-size:9px;color:#ff9800;margin-top:2px">Home city bonus active</div>';
+            h+='<div style="font-size:9px;color:#4a3e6b;margin-top:1px">+'+(home?4:2)+' def, +'+(home?4:2)+' income, +'+(home?2:1)+' vision</div>';
+            h+='</div>';
+        }
+        h+='<div class="sr"><span class="l">Income</span><span class="v">'+ei+'/turn</span></div>';
+        h+='<div class="sr"><span class="l">Defense</span><span class="v">+'+cd+'</span></div>';
         if(tile.owner&&tile.owner!=='kitty'){
             const garDmg=2+(tile.cityLevel||0)*2;
             h+='<div class="sr"><span class="l">Garrison</span><span class="v" style="color:#c45050">'+garDmg+' dmg on capture</span></div>';
@@ -2120,6 +2249,30 @@ function updateSel(){
         const lvl=tile.cityLevel||0,cost=6+lvl*4;
         h+='<div style="margin-top:4px;border-top:1px solid rgba(26,19,48,0.15);padding-top:4px">';
         h+='<button class="ba bf" style="font-size:10px;padding:4px" '+(G.res.kitty>=cost?'':'disabled')+' onclick="upgradeCity('+sel.q+','+sel.r+');updateUI();render()">\u2b06 Upgrade \u2014 '+cost+' catnips<div style="font-size:9px;color:#4a3e6b">+1 def, +1 income. Lvl '+lvl+'</div></button></div>';
+        // Mayor buttons
+        if(tile.mayor){
+            // Recall button
+            const canRecall=stackSize(sel.q,sel.r)<STACK_MAX;
+            h+='<div style="margin-top:4px"><button class="ba" style="font-size:10px;padding:4px;background:#f5e6c8;border-color:#daa520;color:#8a6914" '+(canRecall?'':'disabled')+' onclick="recallMayor('+sel.q+','+sel.r+')">Recall '+HEROES[tile.mayor].name+'</button>';
+            if(!canRecall)h+='<div style="font-size:8px;color:#d23240">City stack full</div>';
+            h+='</div>';
+        } else {
+            // Make Mayor buttons for heroes on this tile
+            const heroesHere=unitsAt(sel.q,sel.r).filter(u=>u.isHero&&u.faction==='kitty');
+            if(heroesHere.length){
+                h+='<div style="margin-top:4px;border-top:1px solid rgba(26,19,48,0.15);padding-top:4px">';
+                heroesHere.forEach(u=>{
+                    const hero=HEROES[u.heroId];
+                    const home=isMayorHome(u.heroId,tile);
+                    h+='<button class="ba" style="font-size:10px;padding:4px;background:#e8f5e9;border-color:#4a7a5c;color:#2e5c3a" onclick="makeMayor(\''+u.id+'\')">';
+                    h+=portraitImg(u.heroId,'neutral',20)+' Make '+hero.name+' Mayor';
+                    if(home)h+='<div style="font-size:9px;color:#ff9800">Home city! Double bonuses</div>';
+                    else h+='<div style="font-size:9px;color:#4a3e6b">+2 def, +2 income, +1 vision</div>';
+                    h+='</button>';
+                });
+                h+='</div>';
+            }
+        }
     }
 
     // Scavenge ruin button
@@ -2178,11 +2331,12 @@ function updateSummonP(){
     if(!tile||!tile.isCity||tile.owner!=='kitty'){p.style.display='none';return}
     const curStack=stackSize(sel.q,sel.r);
     const stackFull=curStack>=STACK_MAX;
-    // Check if any hero is available to summon (not alive, off cooldown)
+    // Check if any hero is available to summon (not alive, not mayor, off cooldown)
     let anyAvailable=false;
     Object.keys(HEROES).forEach(hid=>{
         const alive=Object.values(G.units).some(u=>u.heroId===hid);
-        if(!alive){
+        const mayor=isMayorAnywhere(hid);
+        if(!alive&&!mayor){
             const dt=G.heroDeathTurn[hid];
             const onCooldown=dt&&(G.turn-dt)<HERO_COOLDOWN;
             if(!onCooldown)anyAvailable=true;
@@ -2193,12 +2347,16 @@ function updateSummonP(){
     let h='<h3>Summon Hero</h3>';
     Object.entries(HEROES).forEach(([hid,hero])=>{
         const alive=Object.values(G.units).some(u=>u.heroId===hid);
+        const isMayor=isMayorAnywhere(hid);
         const dt=G.heroDeathTurn[hid];
         const onCooldown=dt&&(G.turn-dt)<HERO_COOLDOWN;
         const turnsLeft=dt?HERO_COOLDOWN-(G.turn-dt):0;
         const canAfford=G.res.kitty>=hero.summonCost;
-        const canSummon=!alive&&!onCooldown&&canAfford&&!stackFull;
-        if(alive){
+        const canSummon=!alive&&!isMayor&&!onCooldown&&canAfford&&!stackFull;
+        if(isMayor){
+            const mc=getMayorCity(hid);
+            h+='<div style="font-size:10px;margin:3px 0;color:#4a7a5c;opacity:0.7">'+portraitImg(hid,'neutral',20)+' '+hero.name+' (mayor of '+(mc?mc.cityName:'city')+')</div>';
+        } else if(alive){
             // Hero is on the board
             h+='<div style="font-size:10px;margin:3px 0;color:#8a7a6a;opacity:0.6">'+portraitImg(hid,'neutral',20)+' '+hero.name+' (active)</div>';
         } else if(onCooldown){
@@ -2234,21 +2392,26 @@ function updateForgeP(){
 function updateHeroP(){
     const p=document.getElementById('herp');
     const heroes=Object.values(G.units).filter(u=>u.isHero&&u.faction==='kitty');
-    // Only show hero panel if at least one hero has been summoned (alive or dead)
-    if(!heroes.length&&!G.flags.heroEverSummoned){p.style.display='none';return}
+    const anyMayor=Object.values(G.tiles).some(t=>t.mayor);
+    // Only show hero panel if at least one hero has been summoned (alive, mayor, or dead)
+    if(!heroes.length&&!anyMayor&&!G.flags.heroEverSummoned){p.style.display='none';return}
     p.style.display='block';let h='<h3>Heroes</h3>';
     Object.keys(HEROES).forEach(hid=>{
         const unit=Object.values(G.units).find(u=>u.heroId===hid);
+        const mayorCity=getMayorCity(hid);
         const hero=HEROES[hid];
-        if(unit){
+        if(mayorCity){
+            const home=isMayorHome(hid,mayorCity);
+            h+='<div style="font-size:10px;margin:2px 0;cursor:pointer;color:#4a7a5c" onclick="centerOn('+mayorCity.q+','+mayorCity.r+')">'+portraitImg(hid,'neutral',24)+' '+hero.name+' (mayor of '+mayorCity.cityName+')'+(home?' \u2605':'')+'</div>';
+        } else if(unit){
             const expr=getHeroExpression(unit);
             h+='<div style="font-size:10px;margin:2px 0;cursor:pointer;color:'+hero.color+'" onclick="centerOn('+unit.q+','+unit.r+')">'+portraitImg(hid,expr,24)+' '+hero.name+' '+unit.hp+'/'+unit.maxHp+(unit.level>1?' \u2605'+unit.level:'')+'</div>';
         } else if(G.flags['summoned_'+hid]){
             const dt=G.heroDeathTurn[hid];
             const onCooldown=dt&&(G.turn-dt)<HERO_COOLDOWN;
             const turnsLeft=dt?HERO_COOLDOWN-(G.turn-dt):0;
-            if(onCooldown) h+='<div style="font-size:10px;margin:2px 0;color:#8a7a6a">'+portraitImg(hid,'ko',24)+' '+hero.name+' \u2014 fallen ('+turnsLeft+' turn'+(turnsLeft!==1?'s':'')+' cooldown)</div>';
-            else h+='<div style="font-size:10px;margin:2px 0;color:#4a7a5c">'+portraitImg(hid,'neutral',24)+' '+hero.name+' \u2014 ready to summon</div>';
+            if(onCooldown) h+='<div style="font-size:10px;margin:2px 0;color:#8a7a6a">'+portraitImg(hid,'ko',24)+' '+hero.name+' (fallen, '+turnsLeft+' turn'+(turnsLeft!==1?'s':'')+' cooldown)</div>';
+            else h+='<div style="font-size:10px;margin:2px 0;color:#4a7a5c">'+portraitImg(hid,'neutral',24)+' '+hero.name+' (ready to summon)</div>';
         }
     });
     p.innerHTML=h;
