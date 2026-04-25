@@ -108,6 +108,7 @@ canvas#mm { position:absolute; bottom:8px; left:8px; width:160px; height:140px; 
             <div class="pb" id="selp"><h3>Selection</h3><p style="font-size:11px;color:#4a3e6b;">Click a hex to inspect</p></div>
             <div class="pb" id="actp" style="display:none"><h3>Actions</h3></div>
             <div class="pb" id="trnp" style="display:none"><h3>Train Unit</h3></div>
+            <div class="pb" id="smnp" style="display:none"><h3>Summon Hero</h3></div>
             <div class="pb" id="frgp" style="display:none"><h3>Smitty's Forge</h3></div>
             <div class="pb" id="herp" style="display:none"><h3>Heroes</h3></div>
             <div class="pb" id="logp"><h3>Battle Log</h3><div id="loge"></div></div>
@@ -1016,13 +1017,14 @@ const F={
     },
 };
 
+const HERO_COOLDOWN=5;
 const HEROES={
-    hitty: {name:'Hitty Kitty', ic:'😼',hp:14,atk:5,def:2,mv:2,rng:1,ability:'Rally',abilityDesc:'Adjacent allies +1 ATK',color:'#ff69b4'},
-    gritty:{name:'Gritty Kitty',ic:'😾',hp:16,atk:4,def:3,mv:2,rng:1,ability:'Retaliate',abilityDesc:'+2 counter-attack dmg',color:'#e94560'},
-    witty: {name:'Witty Kitty', ic:'🧐',hp:9, atk:2,def:1,mv:2,rng:2,ability:'Foresight',abilityDesc:'+2 vision range',color:'#2196f3'},
-    pritty:{name:'Pritty Kitty',ic:'💅',hp:10,atk:2,def:2,mv:2,rng:1,ability:'Inspire',abilityDesc:'Adjacent allies heal 2/turn',color:'#e040fb'},
-    skitty:{name:'Skitty Kitty',ic:'😰',hp:8, atk:2,def:1,mv:3,rng:1,ability:'Panic',abilityDesc:'25% chance 2x damage',color:'#ffc107'},
-    shitty:{name:'Shitty Kitty',ic:'😒',hp:11,atk:4,def:1,mv:2,rng:1,ability:'Reckless',abilityDesc:'+2 ATK, 1 self-dmg',color:'#795548'},
+    hitty: {name:'Hitty Kitty', ic:'😼',hp:14,atk:5,def:2,mv:2,rng:1,ability:'Rally',abilityDesc:'Adjacent allies +1 ATK',color:'#ff69b4',summonCost:18},
+    gritty:{name:'Gritty Kitty',ic:'😾',hp:16,atk:4,def:3,mv:2,rng:1,ability:'Retaliate',abilityDesc:'+2 counter-attack dmg',color:'#e94560',summonCost:18},
+    witty: {name:'Witty Kitty', ic:'🧐',hp:9, atk:2,def:1,mv:2,rng:2,ability:'Foresight',abilityDesc:'+2 vision range',color:'#2196f3',summonCost:16},
+    pritty:{name:'Pritty Kitty',ic:'💅',hp:10,atk:2,def:2,mv:2,rng:1,ability:'Inspire',abilityDesc:'Adjacent allies heal 2/turn',color:'#e040fb',summonCost:16},
+    skitty:{name:'Skitty Kitty',ic:'😰',hp:8, atk:2,def:1,mv:3,rng:1,ability:'Panic',abilityDesc:'25% chance 2x damage',color:'#ffc107',summonCost:15},
+    shitty:{name:'Shitty Kitty',ic:'😒',hp:11,atk:4,def:1,mv:2,rng:1,ability:'Reckless',abilityDesc:'+2 ATK, 1 self-dmg',color:'#795548',summonCost:15},
 };
 
 const FORGE=[
@@ -1167,7 +1169,7 @@ function createGame(){
     const aiFacs=['ferret','meerkat','possum','crow','hyena'];const res={};aiFacs.forEach(f=>res[f]=10);res.kitty=12;
     return{tiles,units,turn:1,currentFaction:'kitty',res,nextUid:uid,log:[],gameOver:false,
         forgeLevel:0,fb:{mAtk:0,aDef:0,regen:0},unlocked:{fiter:true,bloker:true,shoter:false,crusher:false},
-        flags:{},firedEvents:new Set(),improvements:{},grudges:{},provoked:{},capturedCaps:0};
+        flags:{},firedEvents:new Set(),improvements:{},grudges:{},provoked:{},capturedCaps:0,heroDeathTurn:{}};
 }
 
 function updateVision(){
@@ -1364,10 +1366,10 @@ function combat(atk,def){
 
     // Clean up deaths in both stacks
     defStack.forEach(u=>{
-        if(u.hp<=0){addLog(`${u.name} (${F[u.faction].name}) defeated!`,'combat');atk.xp+=3;atk.kills++;checkLvl(atk);if(u.isHero)g.flags.heroKilled=true;delete g.units[u.id]}
+        if(u.hp<=0){addLog(`${u.name} (${F[u.faction].name}) defeated!`,'combat');atk.xp+=3;atk.kills++;checkLvl(atk);if(u.isHero){g.flags.heroKilled=true;if(u.heroId)g.heroDeathTurn[u.heroId]=g.turn}delete g.units[u.id]}
     });
     atkStack.forEach(u=>{
-        if(u.hp<=0){addLog(`${u.name} (${F[u.faction].name}) defeated!`,'combat');if(u.isHero)g.flags.heroKilled=true;delete g.units[u.id]}
+        if(u.hp<=0){addLog(`${u.name} (${F[u.faction].name}) defeated!`,'combat');if(u.isHero){g.flags.heroKilled=true;if(u.heroId)g.heroDeathTurn[u.heroId]=g.turn}delete g.units[u.id]}
     });
     const atkSurvivors=atkStack.filter(u=>g.units[u.id]);
     if(atkSurvivors.length){atkSurvivors.forEach(u=>{u.xp+=1;checkLvl(u)})}
@@ -1400,7 +1402,7 @@ function checkCap(unit){
             unitsAt(n.q,n.r).forEach(eu=>{
                 if(eu.faction!==unit.faction){
                     eu.hp-=3;hitCount++;
-                    if(eu.hp<=0){addLog(eu.name+' destroyed by ordnance explosion!','combat');if(eu.isHero)G.flags.heroKilled=true;delete G.units[eu.id]}
+                    if(eu.hp<=0){addLog(eu.name+' destroyed by ordnance explosion!','combat');if(eu.isHero){G.flags.heroKilled=true;if(eu.heroId)G.heroDeathTurn[eu.heroId]=G.turn}delete G.units[eu.id]}
                     else addLog(eu.name+' takes 3 damage from ordnance!','combat');
                 }
             });
@@ -1423,7 +1425,7 @@ function checkCap(unit){
         addLog((myStack.length>1?F[unit.faction].name+' stack':unit.name)+' takes '+garDmg+' garrison damage from '+(tile.cityName||'City')+'!','combat');
         // Remove any units killed by garrison
         myStack.forEach(u=>{
-            if(u.hp<=0){addLog(u.name+' destroyed by '+tile.cityName+'\'s garrison!','combat');if(u.isHero)G.flags.heroKilled=true;delete G.units[u.id]}
+            if(u.hp<=0){addLog(u.name+' destroyed by '+tile.cityName+'\'s garrison!','combat');if(u.isHero){G.flags.heroKilled=true;if(u.heroId)G.heroDeathTurn[u.heroId]=G.turn}delete G.units[u.id]}
         });
         // If entire stack wiped, city stays
         if(!unitsAt(unit.q,unit.r).some(u=>u.faction===unit.faction))return;
@@ -1664,6 +1666,40 @@ function trainUnit(fac,type,q,r){
     if(fac==='kitty'){let msg='Trained '+tmpl.n;if(discount<1)msg+=' (20% forge discount!)';addLog(msg,'event')}
     return true;
 }
+function summonHero(heroId,q,r){
+    const hero=HEROES[heroId];if(!hero)return false;
+    // Check if hero is already alive on the board
+    if(Object.values(G.units).some(u=>u.heroId===heroId))return false;
+    // Check cooldown
+    if(G.heroDeathTurn[heroId]){
+        const elapsed=G.turn-G.heroDeathTurn[heroId];
+        if(elapsed<HERO_COOLDOWN)return false;
+    }
+    // Check cost and stack space
+    if(G.res.kitty<hero.summonCost)return false;
+    if(stackSize(q,r)>=STACK_MAX)return false;
+    G.res.kitty-=hero.summonCost;
+    const id='u'+(G.nextUid++);
+    let atk=hero.atk,def=hero.def;
+    // Apply Sharpening retroactively (melee only)
+    if(G.fb.mAtk>0&&hero.rng<=1)atk+=G.fb.mAtk;
+    // Apply Reinforced Plating retroactively
+    if(G.fb.aDef>0)def+=G.fb.aDef;
+    // Apply Master Forge retroactively (+2 ATK/DEF for heroes)
+    if(G.forgeLevel>=5){atk+=2;def+=2}
+    G.units[id]={id,faction:'kitty',type:'hero',q,r,hp:hero.hp,maxHp:hero.hp,
+        atk,def,mv:hero.mv,maxMv:hero.mv,rng:hero.rng,moveLeft:0,hasAttacked:true,
+        icon:hero.ic,name:hero.name,isHero:true,heroId,xp:0,level:1,kills:0,fakerUsed:false};
+    G.flags.heroEverSummoned=true;
+    G.flags['summoned_'+heroId]=true;
+    delete G.heroDeathTurn[heroId];
+    const firstTime=!G.flags['everSummoned_'+heroId];
+    G.flags['everSummoned_'+heroId]=true;
+    if(firstTime)addLog(hero.name+' wakes from an epic cat nap! Ready for action.','event');
+    else addLog(hero.name+' returns to duty!','event');
+    return true;
+}
+function doSummon(heroId,q,r){if(summonHero(heroId,q,r)){updateVision();applyHeroAuras();updateUI();render()}}
 function upgradeCity(q,r){
     const k=hK(q,r),tile=G.tiles[k];if(!tile||!tile.isCity||tile.owner!=='kitty')return false;
     const lvl=tile.cityLevel||0,cost=6+lvl*4;if(G.res.kitty<cost)return false;
@@ -1973,7 +2009,7 @@ function updateUI(){
     const mc=Object.values(G.tiles).filter(t=>t.isCity&&t.owner==='kitty').length;
     document.getElementById('cc').textContent='Cities: '+mc;
     document.getElementById('capcount').textContent='Capitals: '+G.capturedCaps+'/5';
-    updateSel();updateTrain();updateForgeP();updateHeroP();updateLog();
+    updateSel();updateTrain();updateSummonP();updateForgeP();updateHeroP();updateLog();
 }
 
 function updateSel(){
@@ -2090,6 +2126,55 @@ function updateTrain(){
     p.innerHTML=h;
 }
 
+function updateSummonP(){
+    const p=document.getElementById('smnp');
+    if(!sel){p.style.display='none';return}
+    const k=hK(sel.q,sel.r),tile=G.tiles[k];
+    // Only show on owned Kitty cities
+    if(!tile||!tile.isCity||tile.owner!=='kitty'){p.style.display='none';return}
+    const curStack=stackSize(sel.q,sel.r);
+    const stackFull=curStack>=STACK_MAX;
+    // Check if any hero is available to summon (not alive, off cooldown)
+    let anyAvailable=false;
+    Object.keys(HEROES).forEach(hid=>{
+        const alive=Object.values(G.units).some(u=>u.heroId===hid);
+        if(!alive){
+            const dt=G.heroDeathTurn[hid];
+            const onCooldown=dt&&(G.turn-dt)<HERO_COOLDOWN;
+            if(!onCooldown)anyAvailable=true;
+        }
+    });
+    // Always show the panel if there are any summonable heroes or any on cooldown worth displaying
+    p.style.display='block';
+    let h='<h3>Summon Hero</h3>';
+    Object.entries(HEROES).forEach(([hid,hero])=>{
+        const alive=Object.values(G.units).some(u=>u.heroId===hid);
+        const dt=G.heroDeathTurn[hid];
+        const onCooldown=dt&&(G.turn-dt)<HERO_COOLDOWN;
+        const turnsLeft=dt?HERO_COOLDOWN-(G.turn-dt):0;
+        const canAfford=G.res.kitty>=hero.summonCost;
+        const canSummon=!alive&&!onCooldown&&canAfford&&!stackFull;
+        if(alive){
+            // Hero is on the board
+            h+='<div style="font-size:10px;margin:3px 0;color:#8a7a6a;opacity:0.6">'+portraitImg(hid,'neutral',20)+' '+hero.name+' (active)</div>';
+        } else if(onCooldown){
+            // Hero is dead and on cooldown
+            h+='<div style="font-size:10px;margin:3px 0;color:#8a7a6a">'+portraitImg(hid,'ko',20)+' '+hero.name+' <span style="color:#d23240">'+turnsLeft+' turn'+(turnsLeft!==1?'s':'')+' until available</span></div>';
+        } else {
+            // Hero can be summoned (if affordable and stack has room)
+            let reason='';
+            if(stackFull)reason=' (city stack full)';
+            else if(!canAfford)reason=' (need '+hero.summonCost+')';
+            h+='<button class="ba bt" style="font-size:10px;padding:4px" '+(canSummon?'':'disabled')+' onclick="doSummon(\''+hid+'\','+sel.q+','+sel.r+')">';
+            h+=portraitImg(hid,'neutral',20)+' '+hero.name+' — '+hero.summonCost+' catnips';
+            h+='<div style="font-size:9px;color:#4a3e6b;margin-top:1px">'+hero.ability+': '+hero.abilityDesc+'</div>';
+            if(reason)h+='<div style="font-size:8px;color:#d23240">'+reason+'</div>';
+            h+='</button>';
+        }
+    });
+    p.innerHTML=h;
+}
+
 function updateForgeP(){
     const p=document.getElementById('frgp');if(!forgeOpen){p.style.display='none';return}
     p.style.display='block';let h="<h3>Smitty\'s Forge</h3>";
@@ -2114,7 +2199,13 @@ function updateHeroP(){
         if(unit){
             const expr=getHeroExpression(unit);
             h+='<div style="font-size:10px;margin:2px 0;cursor:pointer;color:'+hero.color+'" onclick="centerOn('+unit.q+','+unit.r+')">'+portraitImg(hid,expr,24)+' '+hero.name+' '+unit.hp+'/'+unit.maxHp+(unit.level>1?' \u2605'+unit.level:'')+'</div>';
-        } else if(G.flags['summoned_'+hid]) h+='<div style="font-size:10px;margin:2px 0;color:#8a7a6a;text-decoration:line-through">'+portraitImg(hid,'ko',24)+' '+hero.name+' \u2014 fallen</div>';
+        } else if(G.flags['summoned_'+hid]){
+            const dt=G.heroDeathTurn[hid];
+            const onCooldown=dt&&(G.turn-dt)<HERO_COOLDOWN;
+            const turnsLeft=dt?HERO_COOLDOWN-(G.turn-dt):0;
+            if(onCooldown) h+='<div style="font-size:10px;margin:2px 0;color:#8a7a6a">'+portraitImg(hid,'ko',24)+' '+hero.name+' \u2014 fallen ('+turnsLeft+' turn'+(turnsLeft!==1?'s':'')+' cooldown)</div>';
+            else h+='<div style="font-size:10px;margin:2px 0;color:#4a7a5c">'+portraitImg(hid,'neutral',24)+' '+hero.name+' \u2014 ready to summon</div>';
+        }
     });
     p.innerHTML=h;
 }
