@@ -1063,6 +1063,7 @@ let C,X,G=null;
 let cam={x:0,y:0,z:.85};
 let hov=null,sel=null,selU=null;
 let mvHL=[],atHL=[];
+let splitMode=false,splitUnit=null,splitHL=[];
 let drag=false,dragS={x:0,y:0},camS={x:0,y:0};
 let mmC,mmX;
 let forgeOpen=false,fogOn=true,aiMode='defensive';
@@ -1661,7 +1662,7 @@ function trainUnit(fac,type,q,r){
     G.res[fac]-=cost;const id='u'+(G.nextUid++);
     G.units[id]={id,faction:fac,type,q,r,hp:tmpl.hp,maxHp:tmpl.hp,
         atk:tmpl.atk+(fac==='kitty'&&tmpl.rng<=1?G.fb.mAtk:0),def:tmpl.def+(fac==='kitty'?G.fb.aDef:0),
-        mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,moveLeft:0,hasAttacked:true,
+        mv:tmpl.mv,maxMv:tmpl.mv,rng:tmpl.rng,moveLeft:fac==='kitty'?tmpl.mv:0,hasAttacked:fac!=='kitty',
         icon:tmpl.ic,name:tmpl.n,isHero:false,heroId:null,xp:0,level:1,kills:0,fakerUsed:false};
     if(fac==='kitty'){let msg='Trained '+tmpl.n;if(discount<1)msg+=' (20% forge discount!)';addLog(msg,'event')}
     return true;
@@ -1688,7 +1689,7 @@ function summonHero(heroId,q,r){
     // Apply Master Forge retroactively (+2 ATK/DEF for heroes)
     if(G.forgeLevel>=5){atk+=2;def+=2}
     G.units[id]={id,faction:'kitty',type:'hero',q,r,hp:hero.hp,maxHp:hero.hp,
-        atk,def,mv:hero.mv,maxMv:hero.mv,rng:hero.rng,moveLeft:0,hasAttacked:true,
+        atk,def,mv:hero.mv,maxMv:hero.mv,rng:hero.rng,moveLeft:hero.mv,hasAttacked:false,
         icon:hero.ic,name:hero.name,isHero:true,heroId,xp:0,level:1,kills:0,fakerUsed:false};
     G.flags.heroEverSummoned=true;
     G.flags['summoned_'+heroId]=true;
@@ -1700,6 +1701,40 @@ function summonHero(heroId,q,r){
     return true;
 }
 function doSummon(heroId,q,r){if(summonHero(heroId,q,r)){updateVision();applyHeroAuras();updateUI();render()}}
+
+// UNIT SPLITTING
+function startSplit(unitId){
+    const u=G.units[unitId];if(!u)return;
+    const stack=unitsAt(u.q,u.r).filter(s=>s.faction===u.faction);
+    if(stack.length<2)return;
+    splitUnit=u;splitMode=true;
+    // Compute valid adjacent hexes: passable terrain, room in stack (or empty)
+    splitHL=[];
+    hN(u.q,u.r).forEach(n=>{
+        const k=hK(n.q,n.r),tile=G.tiles[k];if(!tile)return;
+        if(tile.terrain.mc<0)return; // impassable
+        const there=unitsAt(n.q,n.r);
+        const enemyThere=there.some(e=>e.faction!==u.faction);if(enemyThere)return;
+        const friendlyCount=there.filter(f=>f.faction===u.faction).length;
+        if(friendlyCount<STACK_MAX)splitHL.push({q:n.q,r:n.r});
+    });
+    mvHL=[];atHL=[];
+    updateUI();render();
+}
+function cancelSplit(){splitMode=false;splitUnit=null;splitHL=[];updateUI();render()}
+function executeSplit(hex){
+    if(!splitUnit||!splitMode)return;
+    const u=splitUnit;
+    const tile=G.tiles[hK(hex.q,hex.r)];if(!tile)return;
+    const moveCost=Math.max(1,tile.terrain.mc);
+    u.q=hex.q;u.r=hex.r;
+    u.moveLeft=Math.max(0,u.moveLeft-moveCost);
+    splitMode=false;splitUnit=null;splitHL=[];
+    sel={q:hex.q,r:hex.r};selU=u;
+    mvHL=Object.values(getReach(u));atHL=getAtk(u).map(a=>({q:a.q,r:a.r}));
+    applyHeroAuras();updateVision();updateUI();render();
+}
+
 function upgradeCity(q,r){
     const k=hK(q,r),tile=G.tiles[k];if(!tile||!tile.isCity||tile.owner!=='kitty')return false;
     const lvl=tile.cityLevel||0,cost=6+lvl*4;if(G.res.kitty<cost)return false;
@@ -1722,7 +1757,7 @@ function startPlayerTurn(){
 
 function endTurn(){
     if(!G||G.gameOver||G.currentFaction!=='kitty')return;
-    selU=null;sel=null;mvHL=[];atHL=[];
+    selU=null;sel=null;mvHL=[];atHL=[];splitMode=false;splitUnit=null;splitHL=[];
     document.getElementById('tp').textContent='AI Turns...';
 
     let i=0;
@@ -1791,7 +1826,7 @@ function render(){
     X.fillStyle='#1a1330';X.fillRect(0,0,cw,ch);
     X.save();X.translate(cw/2+cam.x,ch/2+cam.y);X.scale(cam.z,cam.z);
 
-    const mvS=new Set(mvHL.map(h=>hK(h.q,h.r))),atS=new Set(atHL.map(h=>hK(h.q,h.r)));
+    const mvS=new Set(mvHL.map(h=>hK(h.q,h.r))),atS=new Set(atHL.map(h=>hK(h.q,h.r))),spS=new Set(splitHL.map(h=>hK(h.q,h.r)));
 
     Object.values(G.tiles).forEach(tile=>{
         const p=h2p(tile.q,tile.r),k=hK(tile.q,tile.r);
@@ -1817,6 +1852,7 @@ function render(){
 
         if(mvS.has(k))dHex(p.x,p.y,HEX-2,'rgba(100,200,255,.2)','#5cc',1.5);
         if(atS.has(k))dHex(p.x,p.y,HEX-2,'rgba(255,60,60,.25)','#f44',1.5);
+        if(spS.has(k))dHex(p.x,p.y,HEX-2,'rgba(255,200,50,.25)','#daa520',2);
         if(sel&&tile.q===sel.q&&tile.r===sel.r)dHex(p.x,p.y,HEX,'','#fff',2.5);
         if(hov&&tile.q===hov.q&&tile.r===hov.r)dHex(p.x,p.y,HEX,'','rgba(255,255,255,.3)',1.5);
 
@@ -2066,6 +2102,9 @@ function updateSel(){
             h+='<div class="sr"><span class="l">HP</span><span class="v">'+u.hp+'/'+u.maxHp+'</span></div>';
             h+='<div class="sr"><span class="l">ATK</span><span class="v">'+u.atk+(u._rally?' (+1)':'')+'</span></div>';
             h+='<div class="sr"><span class="l">DEF</span><span class="v">'+u.def+'</span></div>';
+            if(stack.length>1&&u.faction==='kitty'&&u.moveLeft>0){
+                h+='<div style="margin-top:2px"><button class="ba" style="font-size:9px;padding:2px 6px;background:#f5e6c8;border-color:#daa520;color:#8a6914" onclick="startSplit(\''+u.id+'\')">↔ Split from stack</button></div>';
+            }
             if(stack.length===1){
                 h+='<div class="sr"><span class="l">Move</span><span class="v">'+u.moveLeft+'/'+u.mv+'</span></div>';
                 h+='<div class="sr"><span class="l">Range</span><span class="v">'+u.rng+'</span></div>';
@@ -2101,7 +2140,12 @@ function updateSel(){
     p.innerHTML=h;
 
     const ap=document.getElementById('actp');
-    if(unit&&unit.faction==='kitty'&&(unit.moveLeft>0||!unit.hasAttacked)){
+    if(splitMode&&splitUnit){
+        ap.style.display='block';let ah='<h3>Split Unit</h3>';
+        ah+='<div style="font-size:10px;color:#daa520">Click a gold hex to place '+splitUnit.name+'</div>';
+        ah+='<div style="margin-top:4px"><button class="ba" style="font-size:9px;padding:2px 8px" onclick="cancelSplit()">Cancel</button></div>';
+        ap.innerHTML=ah;
+    } else if(unit&&unit.faction==='kitty'&&(unit.moveLeft>0||!unit.hasAttacked)){
         ap.style.display='block';let ah='<h3>Actions</h3>';
         if(unit.moveLeft>0)ah+='<div style="font-size:10px;color:#2b6cff">Click blue hex to move</div>';
         if(atHL.length)ah+='<div style="font-size:10px;color:#d23240">Click red hex to attack</div>';
@@ -2233,6 +2277,7 @@ function setupInput(){
     });
     C.addEventListener('wheel',e=>{e.preventDefault();cam.z=Math.max(.3,Math.min(2.5,cam.z+(e.deltaY>0?-.06:.06)));render()},{passive:false});
     document.addEventListener('keydown',e=>{
+        if(e.key==='Escape'&&splitMode){cancelSplit();return}
         if(e.key==='e'||e.key==='E')endTurn();
         if(e.key==='f'||e.key==='F'){forgeOpen=!forgeOpen;updateUI()}
         if(e.key>='1'&&e.key<='6'){const ids=Object.keys(HEROES),idx=+e.key-1;if(idx<ids.length){const u=Object.values(G.units).find(u=>u.heroId===ids[idx]);if(u)centerOn(u.q,u.r)}}
@@ -2241,6 +2286,12 @@ function setupInput(){
 
 function handleClick(hex){
     const k=hK(hex.q,hex.r),tile=G.tiles[k],clicked=unitAt(hex.q,hex.r);
+    // Handle split mode
+    if(splitMode){
+        if(splitHL.find(h=>h.q===hex.q&&h.r===hex.r)){executeSplit(hex)}
+        else{cancelSplit()}
+        return;
+    }
     if(selU&&mvHL.find(h=>h.q===hex.q&&h.r===hex.r)){
         // Move entire stack
         const myStack=unitsAt(selU.q,selU.r).filter(u=>u.faction===selU.faction);
