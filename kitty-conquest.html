@@ -176,6 +176,98 @@ const SPRITES={};
 let spritesReady=false;
 
 // ================================================================
+// RASTER SPRITE SYSTEM — loads AutoSprite PNG spritesheets
+// ================================================================
+const RASTER={};       // {heroId: {idle: {down:{img,atlas}, right:{img,atlas}, up:{img,atlas}}, attack:{...}}}
+let rasterFrame=0;     // global animation frame counter (0-24)
+let rasterTimer=null;  // animation interval handle
+const RASTER_FPS=10;   // idle animation speed
+const RASTER_FRAMES=25;// frames per animation
+
+// Which characters have raster sprites available
+const RASTER_CHARS={
+  hitty:  {idle:['down','right','up']},
+  shitty: {idle:['down','right','up'], attack:['down','right','up']}
+};
+
+function getRasterSpriteKey(unit){
+  if(!unit.isHero||!unit.heroId)return null;
+  return RASTER_CHARS[unit.heroId]?unit.heroId:null;
+}
+
+// Map hex direction to iso sprite direction + whether to flip horizontally
+// Pointy-top hex has 6 directions. AutoSprite iso gives 3 right-facing.
+// down = toward camera (SE in iso), right = side view (E), up = away (NE)
+// Mirror for left-facing equivalents
+function hexDirToIso(fromQ,fromR,toQ,toR){
+  const dq=toQ-fromQ, dr=toR-fromR;
+  // 6 hex directions for pointy-top:
+  // (+1,0)=E, (+1,-1)=NE, (0,-1)=NW, (-1,0)=W, (-1,+1)=SW, (0,+1)=SE
+  if(dq===1&&dr===0)  return {dir:'right',flip:false};  // E
+  if(dq===1&&dr===-1) return {dir:'up',flip:false};     // NE
+  if(dq===0&&dr===-1) return {dir:'up',flip:true};      // NW (mirror of NE)
+  if(dq===-1&&dr===0) return {dir:'right',flip:true};   // W (mirror of E)
+  if(dq===-1&&dr===1) return {dir:'down',flip:true};    // SW (mirror of SE)
+  if(dq===0&&dr===1)  return {dir:'down',flip:false};   // SE
+  return {dir:'down',flip:false}; // default: face camera
+}
+
+async function preloadRasterSprites(){
+  const promises=[];
+  Object.entries(RASTER_CHARS).forEach(([charId,anims])=>{
+    RASTER[charId]={};
+    Object.entries(anims).forEach(([animName,dirs])=>{
+      RASTER[charId][animName]={};
+      dirs.forEach(dir=>{
+        const url='assets/sprites/'+charId+'/iso_'+animName+'_'+dir+'/spritesheet.png';
+        const atlas_url='assets/sprites/'+charId+'/iso_'+animName+'_'+dir+'/atlas.json';
+        // Load atlas JSON
+        const p=fetch(atlas_url).then(r=>r.json()).then(atlas=>{
+          return new Promise((resolve)=>{
+            const img=new Image();
+            img.onload=()=>{
+              RASTER[charId][animName][dir]={img,atlas};
+              resolve();
+            };
+            img.onerror=()=>{console.warn('Failed to load raster sprite:',url);resolve()};
+            img.src=url;
+          });
+        }).catch(()=>{console.warn('Failed to load atlas:',atlas_url)});
+        promises.push(p);
+      });
+    });
+  });
+  await Promise.all(promises);
+}
+
+function startRasterAnimation(){
+  if(rasterTimer)return;
+  rasterTimer=setInterval(()=>{
+    rasterFrame=(rasterFrame+1)%RASTER_FRAMES;
+    if(spritesReady)render();
+  },1000/RASTER_FPS);
+}
+
+function drawRasterSprite(ctx,charId,animName,dir,flip,cx,cy,drawSz){
+  const data=RASTER[charId]?.[animName]?.[dir];
+  if(!data)return false;
+  const frameData=data.atlas.frames[String(rasterFrame)];
+  if(!frameData)return false;
+  ctx.save();
+  if(flip){
+    ctx.translate(cx,cy);
+    ctx.scale(-1,1);
+    ctx.drawImage(data.img,frameData.x,frameData.y,frameData.w,frameData.h,
+      -drawSz/2,-drawSz/2-2,drawSz,drawSz);
+  } else {
+    ctx.drawImage(data.img,frameData.x,frameData.y,frameData.w,frameData.h,
+      cx-drawSz/2,cy-drawSz/2-2,drawSz,drawSz);
+  }
+  ctx.restore();
+  return true;
+}
+
+// ================================================================
 // EMBLEM SVG BUILDERS (converted from emblems.jsx)
 // ================================================================
 const EMBLEM_COLORS={kitty:'#ff69b4',ferret:'#7c4dff',meerkat:'#ff9800',possum:'#78909c',crow:'#607d8b',hyena:'#8d6e63'};
@@ -1575,7 +1667,7 @@ function runFactionAI(fac){
                 if(friendsHere.length>0&&friendsHere.length<STACK_MAX)s+=6;
                 if(s>bestS){bestS=s;bestK=key}
             });
-            if(bestK){const d=reach[bestK];unit.q=d.q;unit.r=d.r;unit.moveLeft=0;checkCap(unit)}
+            if(bestK){const d=reach[bestK];unit.lastDir=hexDirToIso(unit.q,unit.r,d.q,d.r);unit.q=d.q;unit.r=d.r;unit.moveLeft=0;checkCap(unit)}
         }
 
         if(!unit.hasAttacked&&g.units[unit.id]){
@@ -1752,6 +1844,7 @@ function executeSplit(hex){
     const u=splitUnit;
     const tile=G.tiles[hK(hex.q,hex.r)];if(!tile)return;
     const moveCost=Math.max(1,tile.terrain.mc);
+    u.lastDir=hexDirToIso(u.q,u.r,hex.q,hex.r);
     u.q=hex.q;u.r=hex.r;
     u.moveLeft=Math.max(0,u.moveLeft-moveCost);
     splitMode=false;splitUnit=null;splitHL=[];
@@ -2061,11 +2154,19 @@ function render(){
         if(selU&&stack.some(u=>u.id===selU.id)){X.beginPath();X.arc(p.x,p.y,sz+3,0,Math.PI*2);X.strokeStyle='#fff';X.lineWidth=2;X.stroke()}
 
         let spriteKey=lead.isHero?'hero.'+lead.heroId:lead.faction+'.'+lead.type;
+        const rasterId=getRasterSpriteKey(lead);
+        let drewRaster=false;
+        if(rasterId){
+            // Use raster sprite — determine facing direction
+            const facing=lead.lastDir||{dir:'down',flip:false};
+            const drawSz=lead.isHero?30:26;
+            drewRaster=drawRasterSprite(X,rasterId,'idle',facing.dir,facing.flip,p.x,p.y,drawSz);
+        }
         const sprite=SPRITES[spriteKey];
-        if(sprite&&spritesReady){
+        if(!drewRaster&&sprite&&spritesReady){
             const drawSz=lead.isHero?26:22;
             X.drawImage(sprite,p.x-drawSz/2,p.y-drawSz/2-2,drawSz,drawSz);
-        } else {
+        } else if(!drewRaster) {
             X.beginPath();X.arc(p.x,p.y,sz,0,Math.PI*2);
             X.fillStyle=lead.isHero&&lead.faction==='kitty'?(HEROES[lead.heroId]?.color||fac.dk):fac.dk;
             X.fill();X.strokeStyle=fac.col;X.lineWidth=lead.isHero?2.5:1.5;X.stroke();
@@ -2459,7 +2560,8 @@ function handleClick(hex){
         // Move entire stack
         const myStack=unitsAt(selU.q,selU.r).filter(u=>u.faction===selU.faction);
         const moveCost=Math.max(1,tile.terrain.mc);
-        myStack.forEach(u=>{u.q=hex.q;u.r=hex.r;u.moveLeft-=moveCost;if(u.moveLeft<0)u.moveLeft=0});
+        const isoDir=hexDirToIso(selU.q,selU.r,hex.q,hex.r);
+        myStack.forEach(u=>{u.lastDir=isoDir;u.q=hex.q;u.r=hex.r;u.moveLeft-=moveCost;if(u.moveLeft<0)u.moveLeft=0});
         checkCap(selU);updateVision();if(G.gameOver)return;
         if(!G.flags.firstEnemySeen){Object.values(G.units).forEach(fu=>{if(fu.faction!=='kitty'&&tile.visible&&hD({q:selU.q,r:selU.r},{q:fu.q,r:fu.r})<=3)G.flags.firstEnemySeen=true})}
         mvHL=Object.values(getReach(selU));atHL=getAtk(selU).map(u=>({q:u.q,r:u.r}));sel=hex;updateUI();render();checkStory();return;
@@ -2520,6 +2622,8 @@ async function startGame(){
     setupInput();
     cam.x=0;cam.y=0;
     await preloadSprites();
+    await preloadRasterSprites();
+    startRasterAnimation();
     startPlayerTurn();
     window.addEventListener('resize',render);
 }
